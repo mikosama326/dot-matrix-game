@@ -30,17 +30,17 @@ app.innerHTML = `
   </div>
 `;
 
-const canvas = document.querySelector<HTMLCanvasElement>("#game-canvas");
+const canvas = document.querySelector<HTMLCanvasElement>("#game-canvas")!;
 if (!canvas) {
   throw new Error("Could not find canvas");
 }
 
-const statsEl = document.querySelector<HTMLDivElement>("#stats");
+const statsEl = document.querySelector<HTMLDivElement>("#stats")!;
 if (!statsEl) {
   throw new Error("Could not find stats element");
 }
 
-const ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d")!;
 if (!ctx) {
   throw new Error("Could not get 2D context");
 }
