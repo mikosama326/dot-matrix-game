@@ -1,0 +1,154 @@
+:root {
+  font-family: Inter, system-ui, Arial, sans-serif;
+  color: #f5f5f5;
+  background: #1b1b1b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  min-width: 100vw;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+}
+
+.page {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top, #2b2b2b, #161616 60%);
+}
+
+.game-shell {
+  width: min(1280px, 100%);
+  height: min(720px, 100%);
+  display: grid;
+  grid-template-rows: 48px 1fr;
+  border: 1px solid #3a3a3a;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #202020;
+  box-shadow: 0 12px 50px rgba(0, 0, 0, 0.35);
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #2a2a2a;
+  border-bottom: 1px solid #3a3a3a;
+  gap: 16px;
+}
+
+.title {
+  font-weight: 700;
+}
+
+.pause-btn {
+  padding: 6px 12px;
+  background: #3a3a3a;
+  border: 1px solid #5a5a5a;
+  border-radius: 4px;
+  color: #f5f5f5;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.15s ease;
+}
+
+.pause-btn:hover {
+  background: #454545;
+  border-color: #7a7a7a;
+}
+
+.pause-btn:active {
+  background: #2a2a2a;
+  border-color: #ffffff;
+}
+
+.stats {
+  margin-left: auto;
+}
+
+.content {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  min-height: 0;
+}
+
+.canvas-wrap {
+  min-width: 0;
+  min-height: 0;
+  background: #111;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.side-panel {
+  padding: 16px;
+  border-left: 1px solid #3a3a3a;
+  background: #262626;
+  overflow: auto;
+}
+
+.side-panel h2 {
+  margin-top: 0;
+}
+
+#shop button {
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: #2a2a2a;
+  border: 1px solid #4a4a4a;
+  border-radius: 6px;
+  color: #f5f5f5;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+#shop button:hover:not(:disabled) {
+  background: #333333;
+  border-color: #6a6a6a;
+}
+
+#shop button:active:not(:disabled) {
+  background: #1a1a1a;
+  border-color: #ffffff;
+}
+
+#shop button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#shop button.selected {
+  background: #1a1a1a;
+  border: 2px solid #ffffff;
+  padding: 7px 11px;
+}
