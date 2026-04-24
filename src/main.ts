@@ -12,7 +12,7 @@ app.innerHTML = `
       <div class="top-bar">
         <div class="title">Dot Matrix</div>
         <button id="pause-btn" class="pause-btn">Pause</button>
-        <button id="bounds-btn" class="pause-btn">Hide Bounds</button>
+        <button id="bounds-btn" class="pause-btn">Show Bounds</button>
         <div class="stats" id="stats">Dots: 0</div>
       </div>
 
@@ -73,6 +73,8 @@ if(!contextPanel) {
   throw new Error("Could not find context panel");
 }
 
+let contextPanelHideTimeout: number | null = null;
+
 /* =========================
    WORLD
 ========================= */
@@ -125,6 +127,7 @@ class Grid {
 const grid = new Grid (GRID_WIDTH, GRID_HEIGHT);
 
 const tickRateProgression = [2, 5, 10, 20, 30, 60];
+const tickRateProgressionCost = [50, 200, 500, 1000, 2000];
 
 function secondsPerTick(tickRate: number): number {
   return 1 / tickRate;
@@ -284,7 +287,7 @@ class Consumer {
 ========================= */
 let dotCount = 20;
 let isPaused = false;
-let showBounds = true;
+let showBounds = false;
 const producers: Producer[] = [];
 const consumers: Consumer[] = [];
 
@@ -401,6 +404,27 @@ function getEntitiesAtGridCell(gridX: number, gridY: number): Entity[] {
 
 const UPGRADE_TICK_RATE_COST = 50;
 
+function hideContextPanel(): void {
+  contextPanel.style.display = "none";
+}
+
+function scheduleContextPanelHide(): void {
+  if (contextPanelHideTimeout) {
+    clearTimeout(contextPanelHideTimeout);
+  }
+  contextPanelHideTimeout = setTimeout(() => {
+    hideContextPanel();
+    contextPanelHideTimeout = null;
+  }, 120); // 120ms delay
+}
+
+function cancelContextPanelHide(): void {
+  if (contextPanelHideTimeout) {
+    clearTimeout(contextPanelHideTimeout);
+    contextPanelHideTimeout = null;
+  }
+}
+
 function showContextPanel(entities: Entity[], screenX: number, screenY: number): void {
   if (entities.length === 0) {
     contextPanel.style.display = "none";
@@ -431,8 +455,22 @@ function showContextPanel(entities: Entity[], screenX: number, screenY: number):
 
   contextPanel.innerHTML = html;
   contextPanel.style.display = "block";
-  contextPanel.style.left = screenX + "px";
-  contextPanel.style.top = screenY + "px";
+  
+  // Convert viewport-relative coordinates to canvas-wrap-relative coordinates
+  const canvasWrap = canvas.parentElement;
+  if (canvasWrap) {
+    const canvasWrapRect = canvasWrap.getBoundingClientRect();
+    const relativeX = screenX - canvasWrapRect.left;
+    const relativeY = screenY - canvasWrapRect.top;
+    
+    const offsetX = 8;
+    const offsetY = 8;
+    contextPanel.style.left = (relativeX + offsetX) + "px";
+    contextPanel.style.top = (relativeY + offsetY) + "px";
+  }
+  
+  // Cancel any pending hide when showing
+  cancelContextPanelHide();
 
   // Add event listeners to buttons
   contextPanel.querySelectorAll(".upgrade-btn").forEach((btn) => {
@@ -513,14 +551,23 @@ canvas.addEventListener("mousemove", (event) => {
     if (entities.length > 0) {
       showContextPanel(entities, event.clientX, event.clientY);
     } else {
-      contextPanel.style.display = "none";
+      scheduleContextPanelHide();
     }
   }
 });
 
 canvas.addEventListener("mouseleave", () => {
   hoveredGridCell = null;
-  contextPanel.style.display = "none";
+  scheduleContextPanelHide();
+});
+
+// Add listeners to context panel to keep it visible when hovering over it
+contextPanel.addEventListener("mouseenter", () => {
+  cancelContextPanelHide();
+});
+
+contextPanel.addEventListener("mouseleave", () => {
+  scheduleContextPanelHide();
 });
 
 canvas.addEventListener("contextmenu", (event) => {
@@ -684,7 +731,7 @@ function frame(time: number): void {
 
   while (accumulator >= TICK_INTERVAL) {
     if (!isPaused) {
-      update(deltaSeconds);
+      update(TICK_INTERVAL);
       GLOBAL_PHASE++;
       GLOBAL_PHASE %= TICK_RATE;
     }
