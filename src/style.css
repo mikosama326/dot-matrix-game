@@ -101,6 +101,7 @@ button {
   min-width: 0;
   min-height: 0;
   background: #111;
+  position: relative;
 }
 
 #game-canvas {
@@ -151,4 +152,77 @@ button {
   background: #1a1a1a;
   border: 2px solid #ffffff;
   padding: 7px 11px;
+}
+
+.context-panel {
+  position: absolute;
+  background: #2a2a2a;
+  border: 1px solid #5a5a5a;
+  border-radius: 8px;
+  padding: 12px;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  max-width: 220px;
+  pointer-events: auto;
+}
+
+.entity-info {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #4a4a4a;
+}
+
+.entity-info:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.entity-header {
+  font-weight: 600;
+  color: #55ff88;
+  font-size: 0.95em;
+  margin-bottom: 6px;
+}
+
+.entity-details {
+  font-size: 0.85em;
+  color: #cccccc;
+  margin-bottom: 8px;
+}
+
+.context-panel button {
+  width: 100%;
+  padding: 6px 10px;
+  margin-top: 6px;
+  background: #3a3a3a;
+  border: 1px solid #5a5a5a;
+  border-radius: 4px;
+  color: #f5f5f5;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.15s ease;
+}
+
+.context-panel button:hover:not(:disabled) {
+  background: #454545;
+  border-color: #7a7a7a;
+}
+
+.context-panel button:active:not(:disabled) {
+  background: #2a2a2a;
+  border-color: #ffffff;
+}
+
+.context-panel button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upgrade-btn {
+  color: #55ff88;
+}
+
+.delete-btn {
+  color: #ff5555;
 }

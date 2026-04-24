@@ -19,6 +19,7 @@ app.innerHTML = `
       <div class="content">
         <div class="canvas-wrap">
           <canvas id="game-canvas"></canvas>
+          <div id="context-panel" class="context-panel" style="display: none;"></div>
         </div>
 
         <aside class="side-panel">
@@ -65,6 +66,11 @@ if(!pauseBtn) {
 const boundsBtn = document.querySelector<HTMLButtonElement>("#bounds-btn")!;
 if(!boundsBtn) {
   throw new Error("Could not find bounds button");
+}
+
+const contextPanel = document.querySelector<HTMLDivElement>("#context-panel")!;
+if(!contextPanel) {
+  throw new Error("Could not find context panel");
 }
 
 /* =========================
@@ -118,6 +124,12 @@ class Grid {
 
 const grid = new Grid (GRID_WIDTH, GRID_HEIGHT);
 
+const tickRateProgression = [2, 5, 10, 20, 30, 60];
+
+function secondsPerTick(tickRate: number): number {
+  return 1 / tickRate;
+}
+
 /* =========================
    PRODUCER
 ========================= */
@@ -127,10 +139,13 @@ class Producer {
   beginY : number;
   width : number;
   height : number;
+  currentTickRateIndex : number;
   private currentX: number;
   private currentY: number;
+  private tickCounter: number;
+  private phase: number;
 
-  constructor(beginX:number, beginY:number, width:number, height:number)
+  constructor(beginX:number, beginY:number, width:number, height:number, phase: number)
   {
     this.beginX = beginX;
     this.beginY = beginY;
@@ -139,6 +154,9 @@ class Producer {
 
     this.currentX = beginX;
     this.currentY = beginY;
+    this.currentTickRateIndex = 0;
+    this.tickCounter = 0; // producers start producing immediately, so no initial delay
+    this.phase = phase; // this will be used when saving and loading.
   }
 
   reset()
@@ -147,7 +165,26 @@ class Producer {
     this.currentY = this.beginY;
   }
 
-  update()
+  upgradeTickRate()
+  {
+    if(this.currentTickRateIndex < tickRateProgression.length - 1)
+    {
+      this.currentTickRateIndex++;
+    }
+    this.tickCounter = secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
+  }
+
+  update(deltaTime: number)
+  {
+    this.tickCounter -= deltaTime;
+
+    while (this.tickCounter <= 0) {
+      this.update_internal();
+      this.tickCounter += secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
+    }
+  }
+
+  update_internal()
   {
     grid.set(this.currentX, this.currentY, 1);
 
@@ -159,7 +196,6 @@ class Producer {
       if(this.currentY >= this.beginY + this.height)
       {
         this.reset();
-        return;
       }
     }
   }
@@ -175,18 +211,24 @@ class Consumer {
   beginY : number;
   width : number;
   height : number;
+  currentTickRateIndex : number;
   private currentX: number;
   private currentY: number;
+  private tickCounter: number;
+  private phase: number; // this will be used when saving and loading.
 
-  constructor(beginX:number, beginY:number, width:number, height:number)
+  constructor(beginX:number, beginY:number, width:number, height:number, phase: number)
   {
     this.beginX = beginX;
     this.beginY = beginY;
     this.width = width;
     this.height = height;
+    this.phase = phase; // this will be used when saving and loading.
 
     this.currentX = beginX;
     this.currentY = beginY;
+    this.currentTickRateIndex = 0;
+    this.tickCounter = 0; // consumers start consuming immediately, so no initial delay
   }
 
   reset()
@@ -195,26 +237,45 @@ class Consumer {
     this.currentY = this.beginY;
   }
 
-  update()
+  upgradeTickRate()
   {
-    if(grid.get(this.currentX,this.currentY) > 0)
+    if(this.currentTickRateIndex < tickRateProgression.length - 1)
     {
-      dotCount++;
+      this.currentTickRateIndex++;
     }
-    grid.set(this.currentX, this.currentY, 0);
+    this.tickCounter = secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
+  }
 
-    this.currentX++;
-    if(this.currentX >= this.beginX + this.width)
-    {
-      this.currentX = this.beginX;
-      this.currentY++;
-      if(this.currentY >= this.beginY + this.height)
-      {
-        this.reset();
-        return;
-      }
+  update(deltaTime: number)
+  {
+    this.tickCounter -= deltaTime;
+
+    while (this.tickCounter <= 0) {
+      this.update_internal();
+      this.tickCounter += secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
     }
   }
+
+  private update_internal()
+  {
+    if(grid.get(this.currentX,this.currentY) > 0)
+      {
+        dotCount++;
+      }
+      grid.set(this.currentX, this.currentY, 0);
+
+      this.currentX++;
+      if(this.currentX >= this.beginX + this.width)
+      {
+        this.currentX = this.beginX;
+        this.currentY++;
+        if(this.currentY >= this.beginY + this.height)
+        {
+          this.reset();
+        }
+      }
+  }
+  
 }
 
 
@@ -228,19 +289,19 @@ const producers: Producer[] = [];
 const consumers: Consumer[] = [];
 
 // ticks per second for simulation
-const TICK_RATE = 5;
+const TICK_RATE = 60;//tickRateProgression[tickRateProgression.length - 1]; // max tick rate from progression
 
-function update(): void {
+function update(deltaTime: number): void {
   // update all producers
   for(let i = 0; i < producers.length; i++)
   {
-    producers[i].update();
+    producers[i].update(deltaTime);
   }
 
   // update all consumers
   for(let i = 0 ; i < consumers.length; i++)
   {
-    consumers[i].update();
+    consumers[i].update(deltaTime);
   }
 }
 
@@ -260,25 +321,26 @@ type ShopItem = {
 };
 
 const shopItems: ShopItem[] = [
-  { id: "producer-2x2", name: "Producer2x2", kind: "producer", width: 2, height: 2, cost: 5 },
-  { id: "consumer-2x2", name: "Consumer2x2", kind: "consumer", width: 2, height: 2, cost: 10 },
-  { id: "producer-4x4", name: "Producer4x4", kind: "producer", width: 4, height: 4, cost: 15 },
-  { id: "consumer-4x4", name: "Consumer4x4", kind: "consumer", width: 4, height: 4, cost: 20 },
-  { id: "producer-8x4", name: "Producer8x4", kind: "producer", width: 8, height: 4, cost: 400 },
-  { id: "consumer-8x4", name: "Consumer8x4", kind: "consumer", width: 8, height: 4, cost: 400 },
-  { id: "producer-8x8", name: "Producer8x8", kind: "producer", width: 8, height: 8, cost: 5000 },
-  { id: "consumer-8x8", name: "Consumer8x8", kind: "consumer", width: 8, height: 8, cost: 5000 },
+  { id: "producer-2x2", name: "Producer", kind: "producer", width: 2, height: 2, cost: 5 },
+  { id: "consumer-2x2", name: "Consumer", kind: "consumer", width: 2, height: 2, cost: 10 },
+  { id: "producer-4x4", name: "Producer", kind: "producer", width: 4, height: 4, cost: 15 },
+  { id: "consumer-4x4", name: "Consumer", kind: "consumer", width: 4, height: 4, cost: 20 },
+  { id: "producer-8x4", name: "Producer", kind: "producer", width: 8, height: 4, cost: 400 },
+  { id: "consumer-8x4", name: "Consumer", kind: "consumer", width: 8, height: 4, cost: 400 },
+  { id: "producer-8x8", name: "Producer", kind: "producer", width: 8, height: 8, cost: 5000 },
+  { id: "consumer-8x8", name: "Consumer", kind: "consumer", width: 8, height: 8, cost: 5000 },
 ];
 
 let selectedShopItem: ShopItem | null = null;
 let hoveredGridCell: { x: number; y: number } | null = null;
+let shopButtons: { button: HTMLButtonElement; item: ShopItem }[] = [];
 
 function renderShop(): void {
   shopEl.innerHTML = "";
-
+  shopButtons = []; // Clear the array!
+  
   for (const item of shopItems) {
     const button = document.createElement("button");
-
     button.textContent = `${item.name} ${item.width}x${item.height} - ${item.cost} dots`;
     button.disabled = dotCount < item.cost;
 
@@ -288,9 +350,10 @@ function renderShop(): void {
 
     button.addEventListener("click", () => {
       selectedShopItem = item;
-      renderShop();
+      updateShopButtons(); // Just update UI, don't re-render
     });
 
+    shopButtons.push({ button, item });
     shopEl.appendChild(button);
   }
 }
@@ -308,6 +371,105 @@ function screenToGrid(clientX: number, clientY: number): { x: number; y: number 
     x: Math.floor(localX / cellWidth),
     y: Math.floor(localY / cellHeight),
   };
+}
+
+type Entity = { type: "producer"; entity: Producer; index: number } | { type: "consumer"; entity: Consumer; index: number };
+
+function getEntitiesAtGridCell(gridX: number, gridY: number): Entity[] {
+  const entities: Entity[] = [];
+
+  // Check producers
+  for (let i = 0; i < producers.length; i++) {
+    const producer = producers[i];
+    if (gridX >= producer.beginX && gridX < producer.beginX + producer.width &&
+        gridY >= producer.beginY && gridY < producer.beginY + producer.height) {
+      entities.push({ type: "producer", entity: producer, index: i });
+    }
+  }
+
+  // Check consumers
+  for (let i = 0; i < consumers.length; i++) {
+    const consumer = consumers[i];
+    if (gridX >= consumer.beginX && gridX < consumer.beginX + consumer.width &&
+        gridY >= consumer.beginY && gridY < consumer.beginY + consumer.height) {
+      entities.push({ type: "consumer", entity: consumer, index: i });
+    }
+  }
+
+  return entities;
+}
+
+const UPGRADE_TICK_RATE_COST = 50;
+
+function showContextPanel(entities: Entity[], screenX: number, screenY: number): void {
+  if (entities.length === 0) {
+    contextPanel.style.display = "none";
+    return;
+  }
+
+  let html = "";
+  entities.forEach((entity, idx) => {
+    const typeName = entity.type === "producer" ? "Producer" : "Consumer";
+    const currentTickRate = tickRateProgression[entity.entity.currentTickRateIndex];
+    const nextTickRateIndex = entity.entity.currentTickRateIndex + 1;
+    const canUpgrade = nextTickRateIndex < tickRateProgression.length;
+    const nextTickRate = canUpgrade ? tickRateProgression[nextTickRateIndex] : currentTickRate;
+
+    html += `
+      <div class="entity-info">
+        <div class="entity-header">${typeName} #${idx + 1}</div>
+        <div class="entity-details">
+          <div>Speed: ${currentTickRate}/s ${canUpgrade ? `→ ${nextTickRate}/s` : "(max)"}</div>
+          <button class="upgrade-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}" ${!canUpgrade || dotCount < UPGRADE_TICK_RATE_COST ? "disabled" : ""}>
+            Upgrade (${UPGRADE_TICK_RATE_COST} dots)
+          </button>
+          <button class="delete-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}">Delete</button>
+        </div>
+      </div>
+    `;
+  });
+
+  contextPanel.innerHTML = html;
+  contextPanel.style.display = "block";
+  contextPanel.style.left = screenX + "px";
+  contextPanel.style.top = screenY + "px";
+
+  // Add event listeners to buttons
+  contextPanel.querySelectorAll(".upgrade-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const entityType = (btn as HTMLButtonElement).dataset.entityType as "producer" | "consumer";
+      const entityIndex = parseInt((btn as HTMLButtonElement).dataset.entityIndex!);
+
+      if (entityType === "producer") {
+        if (dotCount >= UPGRADE_TICK_RATE_COST) {
+          producers[entityIndex].upgradeTickRate();
+          dotCount -= UPGRADE_TICK_RATE_COST;
+          showContextPanel(entities, screenX, screenY); // Refresh display
+        }
+      } else {
+        if (dotCount >= UPGRADE_TICK_RATE_COST) {
+          consumers[entityIndex].upgradeTickRate();
+          dotCount -= UPGRADE_TICK_RATE_COST;
+          showContextPanel(entities, screenX, screenY); // Refresh display
+        }
+      }
+    });
+  });
+
+  contextPanel.querySelectorAll(".delete-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const entityType = (btn as HTMLButtonElement).dataset.entityType as "producer" | "consumer";
+      const entityIndex = parseInt((btn as HTMLButtonElement).dataset.entityIndex!);
+
+      if (entityType === "producer") {
+        producers.splice(entityIndex, 1);
+      } else {
+        consumers.splice(entityIndex, 1);
+      }
+      
+      contextPanel.style.display = "none";
+    });
+  });
 }
 
 canvas.addEventListener("click", (event) => {
@@ -330,11 +492,11 @@ canvas.addEventListener("click", (event) => {
 
   if (selectedShopItem.kind === "producer") {
     producers.push(
-      new Producer(pos.x, pos.y, selectedShopItem.width, selectedShopItem.height)
+      new Producer(pos.x, pos.y, selectedShopItem.width, selectedShopItem.height, GLOBAL_PHASE)
     );
   } else {
     consumers.push(
-      new Consumer(pos.x, pos.y, selectedShopItem.width, selectedShopItem.height)
+      new Consumer(pos.x, pos.y, selectedShopItem.width, selectedShopItem.height, GLOBAL_PHASE)
     );
   }
 
@@ -344,10 +506,21 @@ canvas.addEventListener("click", (event) => {
 
 canvas.addEventListener("mousemove", (event) => {
   hoveredGridCell = screenToGrid(event.clientX, event.clientY);
+  
+  // Show context panel if hovering over entities (and not placing a new item)
+  if (!selectedShopItem && hoveredGridCell) {
+    const entities = getEntitiesAtGridCell(hoveredGridCell.x, hoveredGridCell.y);
+    if (entities.length > 0) {
+      showContextPanel(entities, event.clientX, event.clientY);
+    } else {
+      contextPanel.style.display = "none";
+    }
+  }
 });
 
 canvas.addEventListener("mouseleave", () => {
   hoveredGridCell = null;
+  contextPanel.style.display = "none";
 });
 
 canvas.addEventListener("contextmenu", (event) => {
@@ -355,6 +528,8 @@ canvas.addEventListener("contextmenu", (event) => {
   selectedShopItem = null;
   renderShop();
 });
+
+renderShop();
 
 /* =========================
    CANVAS / RENDERING
@@ -455,7 +630,16 @@ function drawHoveredShopItem(): void {
 }
 
 function updateShopButtons(): void {
-  renderShop();
+  for (const { button, item } of shopButtons) {
+    button.disabled = dotCount < item.cost;
+    
+    // Update selected class
+    if (selectedShopItem?.id === item.id) {
+      button.classList.add("selected");
+    } else {
+      button.classList.remove("selected");
+    }
+  }
 }
 
 function render(): void {
@@ -485,7 +669,8 @@ function render(): void {
 
 let lastTime = 0;
 let accumulator = 0;
-const TICK_INTERVAL = 1 / TICK_RATE;
+const TICK_INTERVAL = secondsPerTick(TICK_RATE);
+let GLOBAL_PHASE = 0;
 
 function frame(time: number): void {
   if (lastTime === 0) {
@@ -499,13 +684,15 @@ function frame(time: number): void {
 
   while (accumulator >= TICK_INTERVAL) {
     if (!isPaused) {
-      update();
+      update(deltaSeconds);
+      GLOBAL_PHASE++;
+      GLOBAL_PHASE %= TICK_RATE;
     }
     accumulator -= TICK_INTERVAL;
-    updateShopButtons();
   }
 
   render();
+  updateShopButtons();
   requestAnimationFrame(frame);
 }
 
