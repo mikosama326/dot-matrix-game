@@ -9,10 +9,12 @@ Play it here: https://mikosama326.github.io/dot-matrix-game/
 
 ## Technical info
 
-This repo is built using npm and vite. Install Node.js + npm, then build the code.
+This repo is built using npm and Vite. Install Node.js + npm, then clone the code.
 
 ### Install dependencies:
 ```npm install```
+
+This will install Vite.
 
 ### Run a local dev server:
 ```npm run dev```
