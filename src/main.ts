@@ -179,17 +179,24 @@ class Producer {
 
   update(deltaTime: number)
   {
+    let dotsProduced = 0;
     this.tickCounter -= deltaTime;
 
     while (this.tickCounter <= 0) {
-      this.update_internal();
+      dotsProduced += this.update_internal();
       this.tickCounter += secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
     }
+    return dotsProduced;
   }
 
-  update_internal()
+  update_internal() : number
   {
-    grid.set(this.currentX, this.currentY, 1);
+    let dotsProduced = 0;
+    if(grid.get(this.currentX,this.currentY) === 0)
+    {
+      grid.set(this.currentX, this.currentY, 1);
+      dotsProduced++;
+    }
 
     this.currentX++;
     if(this.currentX >= this.beginX + this.width)
@@ -201,6 +208,7 @@ class Producer {
         this.reset();
       }
     }
+    return dotsProduced;
   }
 }
 
@@ -249,34 +257,39 @@ class Consumer {
     this.tickCounter = secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
   }
 
-  update(deltaTime: number)
+  update(deltaTime: number) : number
   {
+    let dotsConsumed = 0;
     this.tickCounter -= deltaTime;
 
     while (this.tickCounter <= 0) {
-      this.update_internal();
       this.tickCounter += secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
+      dotsConsumed += this.update_internal();
     }
+    return dotsConsumed;
   }
 
-  private update_internal()
+  private update_internal() : number
   {
+    let dotsConsumed = 0;
     if(grid.get(this.currentX,this.currentY) > 0)
-      {
-        dotCount++;
-      }
-      grid.set(this.currentX, this.currentY, 0);
+    {
+      dotCount++;
+      dotsConsumed++;
+    }
+    grid.set(this.currentX, this.currentY, 0);
 
-      this.currentX++;
-      if(this.currentX >= this.beginX + this.width)
+    this.currentX++;
+    if(this.currentX >= this.beginX + this.width)
+    {
+      this.currentX = this.beginX;
+      this.currentY++;
+      if(this.currentY >= this.beginY + this.height)
       {
-        this.currentX = this.beginX;
-        this.currentY++;
-        if(this.currentY >= this.beginY + this.height)
-        {
-          this.reset();
-        }
+        this.reset();
       }
+    }
+    return dotsConsumed;
   }
   
 }
@@ -286,25 +299,44 @@ class Consumer {
    SIMULATION UPDATE
 ========================= */
 let dotCount = 20;
+
 let isPaused = false;
 let showBounds = false;
 const producers: Producer[] = [];
 const consumers: Consumer[] = [];
 
+let dotsProducedCurrentSecond = 0;
+let dotsConsumedCurrentSecond = 0;
+let dotTick = 1; // seconds until next dot rate update
+let dotProductionRate = 0;
+let dotConsumptionRate = 0;
+
+
 // ticks per second for simulation
-const TICK_RATE = 60;//tickRateProgression[tickRateProgression.length - 1]; // max tick rate from progression
+const TICK_RATE = tickRateProgression[tickRateProgression.length - 1]; // max tick rate from progression
 
 function update(deltaTime: number): void {
   // update all producers
   for(let i = 0; i < producers.length; i++)
   {
-    producers[i].update(deltaTime);
+    dotsProducedCurrentSecond += producers[i].update(deltaTime);
   }
 
   // update all consumers
   for(let i = 0 ; i < consumers.length; i++)
   {
-    consumers[i].update(deltaTime);
+    dotsConsumedCurrentSecond += consumers[i].update(deltaTime);
+  }
+
+  dotTick -= deltaTime;
+
+  while (dotTick <= 0) {
+    dotProductionRate = dotsProducedCurrentSecond;
+    dotConsumptionRate = dotsConsumedCurrentSecond;
+    dotsProducedCurrentSecond = 0;
+    dotsConsumedCurrentSecond = 0;
+
+    dotTick += secondsPerTick(1); // reset every second
   }
 }
 
@@ -704,7 +736,17 @@ function render(): void {
 
   drawEntityBounds();
 
-  statsEl.textContent = `Dots: ${dotCount}`;
+  let dotText = dotCount.toString();
+  if(dotCount >= 1000 && dotCount < 1000000) {
+    dotText = (dotCount / 1000).toFixed(1) + "K";
+  }
+  else if(dotCount >= 1000000 && dotCount < 1000000000) {
+    dotText = (dotCount / 1000000).toFixed(1) + "M";
+  }
+  else if(dotCount >= 1000000000 && dotCount < 1000000000000) {
+    dotText = (dotCount / 1000000000).toFixed(1) + "B";
+  }
+  statsEl.textContent = `Dots: ${dotText} \t Dot Production/s: ${dotProductionRate} \t Dot Consumption/s: ${dotConsumptionRate}`;
 
   drawHoveredShopItem();
 }
