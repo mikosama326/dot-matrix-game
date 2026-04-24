@@ -264,10 +264,10 @@ const shopItems: ShopItem[] = [
   { id: "consumer-2x2", name: "Consumer2x2", kind: "consumer", width: 2, height: 2, cost: 10 },
   { id: "producer-4x4", name: "Producer4x4", kind: "producer", width: 4, height: 4, cost: 15 },
   { id: "consumer-4x4", name: "Consumer4x4", kind: "consumer", width: 4, height: 4, cost: 20 },
-  { id: "producer-8x4", name: "Producer8x4", kind: "producer", width: 8, height: 4, cost: 25 },
-  { id: "consumer-8x4", name: "Consumer8x4", kind: "consumer", width: 8, height: 4, cost: 30 },
-  { id: "producer-8x8", name: "Producer8x8", kind: "producer", width: 8, height: 8, cost: 50 },
-  { id: "consumer-8x8", name: "Consumer8x8", kind: "consumer", width: 8, height: 8, cost: 60 },
+  { id: "producer-8x4", name: "Producer8x4", kind: "producer", width: 8, height: 4, cost: 400 },
+  { id: "consumer-8x4", name: "Consumer8x4", kind: "consumer", width: 8, height: 4, cost: 400 },
+  { id: "producer-8x8", name: "Producer8x8", kind: "producer", width: 8, height: 8, cost: 5000 },
+  { id: "consumer-8x8", name: "Consumer8x8", kind: "consumer", width: 8, height: 8, cost: 5000 },
 ];
 
 let selectedShopItem: ShopItem | null = null;

@@ -1,0 +1,27 @@
+# Build and deploy script for GitHub Pages
+Write-Host "Building project..." -ForegroundColor Cyan
+npm run build
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Build failed!" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Committing changes..." -ForegroundColor Cyan
+git add .
+git commit -m "Build and deploy"
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Commit failed!" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Pushing to GitHub..." -ForegroundColor Cyan
+git push
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "Deploy successful! 🚀" -ForegroundColor Green
+} else {
+    Write-Host "Push failed!" -ForegroundColor Red
+    exit 1
+}
