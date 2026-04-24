@@ -22,6 +22,13 @@ app.innerHTML = `
         </div>
 
         <aside class="side-panel">
+          <h2>How to Play</h2>
+          <p>
+            Welcome to Dot Matrix! This is a simple resource management game where you can place producers and consumers on a grid. Producers generate dots, while consumers consume them. Your goal is to manage your dots effectively and build a thriving dot ecosystem! Or just draw funny stuff, if you want.
+          </p>
+          <p>
+            To get started, select a producer or consumer from the shop on the right and click on the grid to place it. Producers will start generating dots in their area, while consumers will consume dots from their area. Generate as many dots as you can and have fun experimenting with different layouts!
+          </p>
           <h2>Shop</h2>
           <div id="shop"></div>
         </aside>
@@ -214,7 +221,7 @@ class Consumer {
 /* =========================
    SIMULATION UPDATE
 ========================= */
-let dotCount = 100;
+let dotCount = 20;
 let isPaused = false;
 let showBounds = true;
 const producers: Producer[] = [];
@@ -257,6 +264,10 @@ const shopItems: ShopItem[] = [
   { id: "consumer-2x2", name: "Consumer2x2", kind: "consumer", width: 2, height: 2, cost: 10 },
   { id: "producer-4x4", name: "Producer4x4", kind: "producer", width: 4, height: 4, cost: 15 },
   { id: "consumer-4x4", name: "Consumer4x4", kind: "consumer", width: 4, height: 4, cost: 20 },
+  { id: "producer-8x4", name: "Producer8x4", kind: "producer", width: 8, height: 4, cost: 25 },
+  { id: "consumer-8x4", name: "Consumer8x4", kind: "consumer", width: 8, height: 4, cost: 30 },
+  { id: "producer-8x8", name: "Producer8x8", kind: "producer", width: 8, height: 8, cost: 50 },
+  { id: "consumer-8x8", name: "Consumer8x8", kind: "consumer", width: 8, height: 8, cost: 60 },
 ];
 
 let selectedShopItem: ShopItem | null = null;
