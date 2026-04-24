@@ -25,10 +25,10 @@ app.innerHTML = `
         <aside class="side-panel">
           <h2>How to Play</h2>
           <p>
-            Welcome to Dot Matrix! This is a simple resource management game where you can place producers and consumers on a grid. Producers generate dots, while consumers consume them. Your goal is to manage your dots effectively and build a thriving dot ecosystem! Or just draw funny stuff, if you want.
+            Welcome to Dot Matrix! This is a simple resource management game where you can place producers and consumers on a grid. Producers generate dots, while consumers consume them and add to your dot count. Spend your dots to buy more producers and consumers, upgrade their speed, and experiment with different layouts to maximize your dot production!
           </p>
           <p>
-            To get started, select a producer or consumer from the shop on the right and click on the grid to place it. Producers will start generating dots in their area, while consumers will consume dots from their area. Generate as many dots as you can and have fun experimenting with different layouts!
+            To get started, select add a 2x2 producer from the shop and place it on the grid. Then add a 2x2 consumer and place it so they overlap. That'll start getting you dots to progress through the game.
           </p>
           <h2>Shop</h2>
           <div id="shop"></div>
@@ -323,8 +323,8 @@ type ShopItem = {
 const shopItems: ShopItem[] = [
   { id: "producer-2x2", name: "Producer", kind: "producer", width: 2, height: 2, cost: 5 },
   { id: "consumer-2x2", name: "Consumer", kind: "consumer", width: 2, height: 2, cost: 10 },
-  { id: "producer-4x4", name: "Producer", kind: "producer", width: 4, height: 4, cost: 15 },
-  { id: "consumer-4x4", name: "Consumer", kind: "consumer", width: 4, height: 4, cost: 20 },
+  { id: "producer-4x4", name: "Producer", kind: "producer", width: 4, height: 4, cost: 100 },
+  { id: "consumer-4x4", name: "Consumer", kind: "consumer", width: 4, height: 4, cost: 100 },
   { id: "producer-8x4", name: "Producer", kind: "producer", width: 8, height: 4, cost: 400 },
   { id: "consumer-8x4", name: "Consumer", kind: "consumer", width: 8, height: 4, cost: 400 },
   { id: "producer-8x8", name: "Producer", kind: "producer", width: 8, height: 8, cost: 5000 },
