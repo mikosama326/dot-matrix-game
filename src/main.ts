@@ -25,7 +25,7 @@ app.innerHTML = `
         <aside class="side-panel">
           <h2>How to Play</h2>
           <p>
-            Welcome to Dot Matrix! This is a simple resource management game where you can place producers and consumers on a grid. Producers generate dots, while consumers consume them and add to your dot count. Spend your dots to buy more producers and consumers, upgrade their speed, and experiment with different layouts to maximize your dot production!
+            Welcome to Dot Matrix! This is a simple incremental game where you can place producers and consumers on a grid. Producers generate dots, while consumers consume them and add to your dot count. Spend your dots to buy more producers and consumers, upgrade their speed, and experiment with different layouts to maximize your dot production!
           </p>
           <p>
             To get started, select add a 2x2 producer from the shop and place it on the grid. Then add a 2x2 consumer and place it so they overlap. That'll start getting you dots to progress through the game.
