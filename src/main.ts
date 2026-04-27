@@ -78,293 +78,32 @@ let contextPanelHideTimeout: number | null = null;
 /* =========================
    WORLD
 ========================= */
-
-const GRID_WIDTH = 48;
-const GRID_HEIGHT = 32;
-
-class Grid {
-  width: number;
-  height: number;
-  cells: Uint8Array;
-
-  constructor(width: number, height: number) {
-    this.width = width;
-    this.height = height;
-    this.cells = new Uint8Array(width * height);
-  }
-
-  index(x: number, y: number) {
-    return y * this.width + x;
-  }
-
-  get(x: number, y: number) {
-    return this.cells[this.index(x, y)];
-  }
-
-  set(x: number, y: number, value: number) {
-    this.cells[this.index(x, y)] = value;
-  }
-
-  fill(value: number) {
-    this.cells.fill(value);
-  }
-
-  clear() {
-    this.cells.fill(0);
-  }
-
-  countFilledCells() {
-    let count = 0;
-    for(let i = 0; i < this.cells.length; i++)
-    {
-      if(this.cells[i] > 0)
-        count++;
-    }
-    return count;
-  }
-}
-
-const grid = new Grid (GRID_WIDTH, GRID_HEIGHT);
-
-const tickRateProgression = [2, 5, 10, 20, 30, 60];
-
-function secondsPerTick(tickRate: number): number {
-  return 1 / tickRate;
-}
-
-class Actor {
-  beginX : number;
-  beginY : number;
-  width : number;
-  height : number;
-  currentTickRateIndex : number;
-  protected currentX: number;
-  protected currentY: number;
-  protected tickCounter: number;
-  protected phase: number;
-
-  constructor(beginX:number, beginY:number, width:number, height:number, phase: number)
-  {
-    this.beginX = beginX;
-    this.beginY = beginY;
-    this.width = width;
-    this.height = height;
-
-    this.currentX = beginX;
-    this.currentY = beginY;
-    this.currentTickRateIndex = 0;
-    this.tickCounter = 0; // producers start producing immediately, so no initial delay
-    this.phase = phase; // this will be used when saving and loading.
-  }
-
-  reset()
-  {
-    this.currentX = this.beginX;
-    this.currentY = this.beginY;
-  }
-
-  upgradeTickRate()
-  {
-    if(this.currentTickRateIndex < tickRateProgression.length - 1)
-    {
-      this.currentTickRateIndex++;
-    }
-    this.tickCounter = secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
-  }
-}
-
-/* =========================
-   PRODUCER
-========================= */
-
-class Producer extends Actor {
-  
-  update(deltaTime: number)
-  {
-    let dotsProduced = 0;
-    this.tickCounter -= deltaTime;
-
-    while (this.tickCounter <= 0) {
-      dotsProduced += this.update_internal();
-      this.tickCounter += secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
-    }
-    return dotsProduced;
-  }
-
-  update_internal() : number
-  {
-    let dotsProduced = 0;
-    if(grid.get(this.currentX,this.currentY) === 0)
-    {
-      grid.set(this.currentX, this.currentY, 1);
-      dotsProduced++;
-    }
-
-    this.currentX++;
-    if(this.currentX >= this.beginX + this.width)
-    {
-      this.currentX = this.beginX;
-      this.currentY++;
-      if(this.currentY >= this.beginY + this.height)
-      {
-        this.reset();
-      }
-    }
-    return dotsProduced;
-  }
-}
-
-
-/* =========================
-   CONSUMER
-========================= */
-
-class Consumer extends Actor {
-
-  update(deltaTime: number) : number
-  {
-    let dotsConsumed = 0;
-    this.tickCounter -= deltaTime;
-
-    while (this.tickCounter <= 0) {
-      this.tickCounter += secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
-      dotsConsumed += this.update_internal();
-    }
-    return dotsConsumed;
-  }
-
-  private update_internal() : number
-  {
-    let dotsConsumed = 0;
-    if(grid.get(this.currentX,this.currentY) > 0)
-    {
-      dotCount++;
-      dotsConsumed++;
-    }
-    grid.set(this.currentX, this.currentY, 0);
-
-    this.currentX++;
-    if(this.currentX >= this.beginX + this.width)
-    {
-      this.currentX = this.beginX;
-      this.currentY++;
-      if(this.currentY >= this.beginY + this.height)
-      {
-        this.reset();
-      }
-    }
-    return dotsConsumed;
-  }
-  
-}
-
+import { grid } from "./grid.ts";
+import { Producer, Consumer } from "./entities/actor.ts";
+import { secondsPerTick, TICK_RATE_PROGRESSION, UPGRADE_TICK_RATE_COST} from "./constants.ts";
 
 /* =========================
    SIMULATION UPDATE
 ========================= */
-let dotCount = 20;
-
-let isPaused = false;
-let showBounds = false;
-const producers: Producer[] = [];
-const consumers: Consumer[] = [];
-
-let dotsProducedCurrentSecond = 0;
-let dotsConsumedCurrentSecond = 0;
-let dotTick = 1; // seconds until next dot rate update
-let dotProductionRate = 0;
-let dotConsumptionRate = 0;
-
-
-// ticks per second for simulation
-const TICK_RATE = tickRateProgression[tickRateProgression.length - 1]; // max tick rate from progression
-
-function update(deltaTime: number): void {
-  // update all producers
-  for(let i = 0; i < producers.length; i++)
-  {
-    dotsProducedCurrentSecond += producers[i].update(deltaTime);
-  }
-
-  // update all consumers
-  for(let i = 0 ; i < consumers.length; i++)
-  {
-    dotsConsumedCurrentSecond += consumers[i].update(deltaTime);
-  }
-
-  dotTick -= deltaTime;
-
-  while (dotTick <= 0) {
-    dotProductionRate = dotsProducedCurrentSecond;
-    dotConsumptionRate = dotsConsumedCurrentSecond;
-    dotsProducedCurrentSecond = 0;
-    dotsConsumedCurrentSecond = 0;
-
-    dotTick += secondsPerTick(1); // reset every second
-  }
-}
+import { gameState } from "./game.ts";
 
 /* =========================
    SHOP / UI
 ========================= */
 
-type BuildKind = "producer" | "consumer";
+import { ShopUI } from "./shop/shopUI.ts";
 
-type ShopItem = {
-  id: string;
-  name: string;
-  kind: BuildKind;
-  width: number;
-  height: number;
-  cost: number;
-};
-
-const shopItems: ShopItem[] = [
-  { id: "producer-2x2", name: "Producer", kind: "producer", width: 2, height: 2, cost: 5 },
-  { id: "consumer-2x2", name: "Consumer", kind: "consumer", width: 2, height: 2, cost: 10 },
-  { id: "producer-4x4", name: "Producer", kind: "producer", width: 4, height: 4, cost: 100 },
-  { id: "consumer-4x4", name: "Consumer", kind: "consumer", width: 4, height: 4, cost: 100 },
-  { id: "producer-8x4", name: "Producer", kind: "producer", width: 8, height: 4, cost: 400 },
-  { id: "consumer-8x4", name: "Consumer", kind: "consumer", width: 8, height: 4, cost: 400 },
-  { id: "producer-8x8", name: "Producer", kind: "producer", width: 8, height: 8, cost: 5000 },
-  { id: "consumer-8x8", name: "Consumer", kind: "consumer", width: 8, height: 8, cost: 5000 },
-];
-
-let selectedShopItem: ShopItem | null = null;
 let hoveredGridCell: { x: number; y: number } | null = null;
-let shopButtons: { button: HTMLButtonElement; item: ShopItem }[] = [];
 
-function renderShop(): void {
-  shopEl.innerHTML = "";
-  shopButtons = []; // Clear the array!
-  
-  for (const item of shopItems) {
-    const button = document.createElement("button");
-    button.textContent = `${item.name} ${item.width}x${item.height} - ${item.cost} dots`;
-    button.disabled = dotCount < item.cost;
-    button.draggable = true;
+let shop: ShopUI;
 
-    button.addEventListener("dragstart", (e) => {
-      if (dotCount < item.cost) {
-        e.preventDefault();
-        return;
-      }
-      selectedShopItem = item;
-      (e.dataTransfer as DataTransfer).effectAllowed = "move";
-      (e.dataTransfer as DataTransfer).setDragImage(new Image(), 0, 0);
-    });
+// Initialize shop with callbacks to add entities to game state
+shop = new ShopUI(
+  shopEl,
+  (producer) => gameState.producers.push(producer),
+  (consumer) => gameState.consumers.push(consumer)
+);
 
-    button.addEventListener("dragend", (e) => {
-      // If dropped outside canvas, deselect
-      if ((e.dataTransfer as DataTransfer).dropEffect === "none") {
-        selectedShopItem = null;
-      }
-    });
-
-    shopButtons.push({ button, item });
-    shopEl.appendChild(button);
-  }
-}
 
 function screenToGrid(clientX: number, clientY: number): { x: number; y: number } {
   const rect = canvas.getBoundingClientRect();
@@ -387,8 +126,8 @@ function getEntitiesAtGridCell(gridX: number, gridY: number): Entity[] {
   const entities: Entity[] = [];
 
   // Check producers
-  for (let i = 0; i < producers.length; i++) {
-    const producer = producers[i];
+  for (let i = 0; i < gameState.producers.length; i++) {
+    const producer = gameState.producers[i];
     if (gridX >= producer.beginX && gridX < producer.beginX + producer.width &&
         gridY >= producer.beginY && gridY < producer.beginY + producer.height) {
       entities.push({ type: "producer", entity: producer, index: i });
@@ -396,8 +135,8 @@ function getEntitiesAtGridCell(gridX: number, gridY: number): Entity[] {
   }
 
   // Check consumers
-  for (let i = 0; i < consumers.length; i++) {
-    const consumer = consumers[i];
+  for (let i = 0; i < gameState.consumers.length; i++) {
+    const consumer = gameState.consumers[i];
     if (gridX >= consumer.beginX && gridX < consumer.beginX + consumer.width &&
         gridY >= consumer.beginY && gridY < consumer.beginY + consumer.height) {
       entities.push({ type: "consumer", entity: consumer, index: i });
@@ -406,8 +145,6 @@ function getEntitiesAtGridCell(gridX: number, gridY: number): Entity[] {
 
   return entities;
 }
-
-const UPGRADE_TICK_RATE_COST = [50, 100, 200, 500, 1000, 2000]; // cost for each tick rate upgrade level
 
 function hideContextPanel(): void {
   contextPanel.style.display = "none";
@@ -439,17 +176,17 @@ function showContextPanel(entities: Entity[], screenX: number, screenY: number):
   let html = "";
   entities.forEach((entity, idx) => {
     const typeName = entity.type === "producer" ? "Producer" : "Consumer";
-    const currentTickRate = tickRateProgression[entity.entity.currentTickRateIndex];
+    const currentTickRate = TICK_RATE_PROGRESSION[entity.entity.currentTickRateIndex];
     const nextTickRateIndex = entity.entity.currentTickRateIndex + 1;
-    const canUpgrade = nextTickRateIndex < tickRateProgression.length;
-    const nextTickRate = canUpgrade ? tickRateProgression[nextTickRateIndex] : currentTickRate;
+    const canUpgrade = nextTickRateIndex < TICK_RATE_PROGRESSION.length;
+    const nextTickRate = canUpgrade ? TICK_RATE_PROGRESSION[nextTickRateIndex] : currentTickRate;
 
     html += `
       <div class="entity-info">
         <div class="entity-header">${typeName} #${idx + 1}</div>
         <div class="entity-details">
           <div>Speed: ${currentTickRate}/s ${canUpgrade ? `→ ${nextTickRate}/s` : "(max)"}</div>
-          <button class="upgrade-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}" ${!canUpgrade || dotCount < UPGRADE_TICK_RATE_COST[entity.entity.currentTickRateIndex] ? "disabled" : ""}>
+          <button class="upgrade-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}" ${!canUpgrade || gameState.dotCount < UPGRADE_TICK_RATE_COST[entity.entity.currentTickRateIndex] ? "disabled" : ""}>
             Upgrade (${UPGRADE_TICK_RATE_COST[entity.entity.currentTickRateIndex]} dots)
           </button>
           <button class="delete-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}">Delete</button>
@@ -484,15 +221,15 @@ function showContextPanel(entities: Entity[], screenX: number, screenY: number):
       const entityIndex = parseInt((btn as HTMLButtonElement).dataset.entityIndex!);
 
       if (entityType === "producer") {
-        if (dotCount >= UPGRADE_TICK_RATE_COST[producers[entityIndex].currentTickRateIndex]) {
-          producers[entityIndex].upgradeTickRate();
-          dotCount -= UPGRADE_TICK_RATE_COST[producers[entityIndex].currentTickRateIndex];
+        if (gameState.dotCount >= UPGRADE_TICK_RATE_COST[gameState.producers[entityIndex].currentTickRateIndex]) {
+          gameState.producers[entityIndex].upgradeTickRate();
+          gameState.dotCount -= UPGRADE_TICK_RATE_COST[gameState.producers[entityIndex].currentTickRateIndex];
           showContextPanel(entities, screenX, screenY); // Refresh display
         }
       } else {
-        if (dotCount >= UPGRADE_TICK_RATE_COST[consumers[entityIndex].currentTickRateIndex]) {
-          consumers[entityIndex].upgradeTickRate();
-          dotCount -= UPGRADE_TICK_RATE_COST[consumers[entityIndex].currentTickRateIndex];
+        if (gameState.dotCount >= UPGRADE_TICK_RATE_COST[gameState.consumers[entityIndex].currentTickRateIndex]) {
+          gameState.consumers[entityIndex].upgradeTickRate();
+          gameState.dotCount -= UPGRADE_TICK_RATE_COST[gameState.consumers[entityIndex].currentTickRateIndex];
           showContextPanel(entities, screenX, screenY); // Refresh display
         }
       }
@@ -505,9 +242,9 @@ function showContextPanel(entities: Entity[], screenX: number, screenY: number):
       const entityIndex = parseInt((btn as HTMLButtonElement).dataset.entityIndex!);
 
       if (entityType === "producer") {
-        producers.splice(entityIndex, 1);
+        gameState.producers.splice(entityIndex, 1);
       } else {
-        consumers.splice(entityIndex, 1);
+        gameState.consumers.splice(entityIndex, 1);
       }
       
       contextPanel.style.display = "none";
@@ -517,7 +254,7 @@ function showContextPanel(entities: Entity[], screenX: number, screenY: number):
 
 // Prevent default drag behaviors on canvas
 canvas.addEventListener("dragover", (event) => {
-  if (selectedShopItem) {
+  if (shop.selectedItem) {
     event.preventDefault();
     (event.dataTransfer as DataTransfer).dropEffect = "move";
     hoveredGridCell = screenToGrid(event.clientX, event.clientY);
@@ -525,7 +262,7 @@ canvas.addEventListener("dragover", (event) => {
 });
 
 canvas.addEventListener("dragenter", (event) => {
-  if (selectedShopItem) {
+  if (shop.selectedItem) {
     event.preventDefault();
   }
 });
@@ -534,43 +271,17 @@ canvas.addEventListener("dragenter", (event) => {
 canvas.addEventListener("drop", (event) => {
   event.preventDefault();
   
-  if (!selectedShopItem) return;
-  if (dotCount < selectedShopItem.cost) return;
+  if (!shop.selectedItem) return;
 
   const pos = screenToGrid(event.clientX, event.clientY);
-
-  // Prevent placement outside bounds
-  if (
-    pos.x < 0 ||
-    pos.y < 0 ||
-    pos.x + selectedShopItem.width > grid.width ||
-    pos.y + selectedShopItem.height > grid.height
-  ) {
-    selectedShopItem = null;
-    return;
-  }
-
-  dotCount -= selectedShopItem.cost;
-
-  if (selectedShopItem.kind === "producer") {
-    producers.push(
-      new Producer(pos.x, pos.y, selectedShopItem.width, selectedShopItem.height, GLOBAL_PHASE)
-    );
-  } else {
-    consumers.push(
-      new Consumer(pos.x, pos.y, selectedShopItem.width, selectedShopItem.height, GLOBAL_PHASE)
-    );
-  }
-
-  selectedShopItem = null;
-  renderShop();
+  shop.tryPlaceItem(pos.x, pos.y);
 });
 
 canvas.addEventListener("mousemove", (event) => {
   hoveredGridCell = screenToGrid(event.clientX, event.clientY);
   
   // Show context panel if hovering over entities (and not dragging a new item)
-  if (!selectedShopItem && hoveredGridCell) {
+  if (!shop.selectedItem && hoveredGridCell) {
     const entities = getEntitiesAtGridCell(hoveredGridCell.x, hoveredGridCell.y);
     if (entities.length > 0) {
       showContextPanel(entities, event.clientX, event.clientY);
@@ -582,7 +293,7 @@ canvas.addEventListener("mousemove", (event) => {
 
 canvas.addEventListener("mouseleave", () => {
   hoveredGridCell = null;
-  if (!selectedShopItem) {
+  if (!shop.selectedItem) {
     scheduleContextPanelHide();
   }
 });
@@ -598,10 +309,7 @@ contextPanel.addEventListener("mouseleave", () => {
 
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
-  selectedShopItem = null;
 });
-
-renderShop();
 
 /* =========================
    CANVAS / RENDERING
@@ -656,14 +364,14 @@ function drawDots(): void {
 }
 
 function drawEntityBounds(): void {
-  if (!showBounds) return;
+  if (!gameState.showBounds) return;
 
   const cellWidth = canvas.clientWidth / grid.width;
   const cellHeight = canvas.clientHeight / grid.height;
 
   ctx.lineWidth = 1;
 
-  for (const producer of producers) {
+  for (const producer of gameState.producers) {
     ctx.strokeStyle = "#55ff88";
     ctx.strokeRect(
       producer.beginX * cellWidth,
@@ -673,7 +381,7 @@ function drawEntityBounds(): void {
     );
   }
 
-  for (const consumer of consumers) {
+  for (const consumer of gameState.consumers) {
     ctx.strokeStyle = "#ffcc55";
     ctx.strokeRect(
       consumer.beginX * cellWidth,
@@ -685,7 +393,8 @@ function drawEntityBounds(): void {
 }
 
 function drawHoveredShopItem(): void {
-  if (selectedShopItem && hoveredGridCell) {
+  const selectedItem = shop.selectedItem;
+  if (selectedItem && hoveredGridCell) {
     // Check if the hovered cell is within valid bounds
     if (
       hoveredGridCell.x < 0 ||
@@ -699,36 +408,30 @@ function drawHoveredShopItem(): void {
     const cellWidth = canvas.clientWidth / grid.width;
     const cellHeight = canvas.clientHeight / grid.height;
 
-    ctx.strokeStyle = dotCount >= selectedShopItem.cost ? "#ffffff" : "#ff5555";
+    ctx.strokeStyle = gameState.dotCount >= selectedItem.cost ? "#ffffff" : "#ff5555";
     ctx.lineWidth = 2;
 
     ctx.strokeRect(
       hoveredGridCell.x * cellWidth,
       hoveredGridCell.y * cellHeight,
-      selectedShopItem.width * cellWidth,
-      selectedShopItem.height * cellHeight
+      selectedItem.width * cellWidth,
+      selectedItem.height * cellHeight
     );
   }
 }
 
-function updateShopButtons(): void {
-  for (const { button, item } of shopButtons) {
-    button.disabled = dotCount < item.cost;
-  }
-}
-
 function drawStats(): void {
-  let dotText = dotCount.toString();
-  if(dotCount >= 1000 && dotCount < 1000000) {
-    dotText = (dotCount / 1000).toFixed(1) + "K";
+  let dotText = gameState.dotCount.toString();
+  if(gameState.dotCount >= 1000 && gameState.dotCount < 1000000) {
+    dotText = (gameState.dotCount / 1000).toFixed(1) + "K";
   }
-  else if(dotCount >= 1000000 && dotCount < 1000000000) {
-    dotText = (dotCount / 1000000).toFixed(1) + "M";
+  else if(gameState.dotCount >= 1000000 && gameState.dotCount < 1000000000) {
+    dotText = (gameState.dotCount / 1000000).toFixed(1) + "M";
   }
-  else if(dotCount >= 1000000000 && dotCount < 1000000000000) {
-    dotText = (dotCount / 1000000000).toFixed(1) + "B";
+  else if(gameState.dotCount >= 1000000000 && gameState.dotCount < 1000000000000) {
+    dotText = (gameState.dotCount / 1000000000).toFixed(1) + "B";
   }
-  statsEl.textContent = `Dots: ${dotText} \t Dot Production/s: ${dotProductionRate} \t Dot Consumption/s: ${dotConsumptionRate}`;
+  statsEl.textContent = `Dots: ${dotText} \t Dot Production/s: ${gameState.dotProductionRate} \t Dot Consumption/s: ${gameState.dotConsumptionRate}`;
 }
 
 function render(): void {
@@ -758,8 +461,7 @@ function render(): void {
 
 let lastTime = 0;
 let accumulator = 0;
-const TICK_INTERVAL = secondsPerTick(TICK_RATE);
-let GLOBAL_PHASE = 0;
+const TICK_INTERVAL = secondsPerTick(gameState.TICK_RATE);
 
 function frame(time: number): void {
   if (lastTime === 0) {
@@ -772,16 +474,14 @@ function frame(time: number): void {
   accumulator += deltaSeconds;
 
   while (accumulator >= TICK_INTERVAL) {
-    if (!isPaused) {
-      update(TICK_INTERVAL);
-      GLOBAL_PHASE++;
-      GLOBAL_PHASE %= TICK_RATE;
+    if (!gameState.isPaused) {
+      gameState.update(TICK_INTERVAL);
     }
     accumulator -= TICK_INTERVAL;
   }
 
   render();
-  updateShopButtons();
+  shop.updateButtonStates();
   requestAnimationFrame(frame);
 }
 
@@ -791,16 +491,15 @@ window.addEventListener("resize", () => {
 });
 
 pauseBtn.addEventListener("click", () => {
-  isPaused = !isPaused;
-  pauseBtn.textContent = isPaused ? "Resume" : "Pause";
+  gameState.isPaused = !gameState.isPaused;
+  pauseBtn.textContent = gameState.isPaused ? "Resume" : "Pause";
 });
 
 boundsBtn.addEventListener("click", () => {
-  showBounds = !showBounds;
-  boundsBtn.textContent = showBounds ? "Hide Bounds" : "Show Bounds";
+  gameState.showBounds = !gameState.showBounds;
+  boundsBtn.textContent = gameState.showBounds ? "Hide Bounds" : "Show Bounds";
 });
 
-// Initialize
 resizeCanvas();
-renderShop();
+shop.render();
 requestAnimationFrame(frame);
