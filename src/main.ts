@@ -127,26 +127,21 @@ class Grid {
 const grid = new Grid (GRID_WIDTH, GRID_HEIGHT);
 
 const tickRateProgression = [2, 5, 10, 20, 30, 60];
-const tickRateProgressionCost = [50, 200, 500, 1000, 2000];
 
 function secondsPerTick(tickRate: number): number {
   return 1 / tickRate;
 }
 
-/* =========================
-   PRODUCER
-========================= */
-
-class Producer {
+class Actor {
   beginX : number;
   beginY : number;
   width : number;
   height : number;
   currentTickRateIndex : number;
-  private currentX: number;
-  private currentY: number;
-  private tickCounter: number;
-  private phase: number;
+  protected currentX: number;
+  protected currentY: number;
+  protected tickCounter: number;
+  protected phase: number;
 
   constructor(beginX:number, beginY:number, width:number, height:number, phase: number)
   {
@@ -176,7 +171,14 @@ class Producer {
     }
     this.tickCounter = secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
   }
+}
 
+/* =========================
+   PRODUCER
+========================= */
+
+class Producer extends Actor {
+  
   update(deltaTime: number)
   {
     let dotsProduced = 0;
@@ -217,45 +219,7 @@ class Producer {
    CONSUMER
 ========================= */
 
-class Consumer {
-  beginX : number;
-  beginY : number;
-  width : number;
-  height : number;
-  currentTickRateIndex : number;
-  private currentX: number;
-  private currentY: number;
-  private tickCounter: number;
-  private phase: number; // this will be used when saving and loading.
-
-  constructor(beginX:number, beginY:number, width:number, height:number, phase: number)
-  {
-    this.beginX = beginX;
-    this.beginY = beginY;
-    this.width = width;
-    this.height = height;
-    this.phase = phase; // this will be used when saving and loading.
-
-    this.currentX = beginX;
-    this.currentY = beginY;
-    this.currentTickRateIndex = 0;
-    this.tickCounter = 0; // consumers start consuming immediately, so no initial delay
-  }
-
-  reset()
-  {
-    this.currentX = this.beginX;
-    this.currentY = this.beginY;
-  }
-
-  upgradeTickRate()
-  {
-    if(this.currentTickRateIndex < tickRateProgression.length - 1)
-    {
-      this.currentTickRateIndex++;
-    }
-    this.tickCounter = secondsPerTick(tickRateProgression[this.currentTickRateIndex]);
-  }
+class Consumer extends Actor {
 
   update(deltaTime: number) : number
   {
@@ -378,14 +342,23 @@ function renderShop(): void {
     const button = document.createElement("button");
     button.textContent = `${item.name} ${item.width}x${item.height} - ${item.cost} dots`;
     button.disabled = dotCount < item.cost;
+    button.draggable = true;
 
-    if (selectedShopItem?.id === item.id) {
-      button.classList.add("selected");
-    }
-
-    button.addEventListener("click", () => {
+    button.addEventListener("dragstart", (e) => {
+      if (dotCount < item.cost) {
+        e.preventDefault();
+        return;
+      }
       selectedShopItem = item;
-      updateShopButtons(); // Just update UI, don't re-render
+      (e.dataTransfer as DataTransfer).effectAllowed = "move";
+      (e.dataTransfer as DataTransfer).setDragImage(new Image(), 0, 0);
+    });
+
+    button.addEventListener("dragend", (e) => {
+      // If dropped outside canvas, deselect
+      if ((e.dataTransfer as DataTransfer).dropEffect === "none") {
+        selectedShopItem = null;
+      }
     });
 
     shopButtons.push({ button, item });
@@ -434,7 +407,7 @@ function getEntitiesAtGridCell(gridX: number, gridY: number): Entity[] {
   return entities;
 }
 
-const UPGRADE_TICK_RATE_COST = 50;
+const UPGRADE_TICK_RATE_COST = [50, 100, 200, 500, 1000, 2000]; // cost for each tick rate upgrade level
 
 function hideContextPanel(): void {
   contextPanel.style.display = "none";
@@ -476,8 +449,8 @@ function showContextPanel(entities: Entity[], screenX: number, screenY: number):
         <div class="entity-header">${typeName} #${idx + 1}</div>
         <div class="entity-details">
           <div>Speed: ${currentTickRate}/s ${canUpgrade ? `→ ${nextTickRate}/s` : "(max)"}</div>
-          <button class="upgrade-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}" ${!canUpgrade || dotCount < UPGRADE_TICK_RATE_COST ? "disabled" : ""}>
-            Upgrade (${UPGRADE_TICK_RATE_COST} dots)
+          <button class="upgrade-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}" ${!canUpgrade || dotCount < UPGRADE_TICK_RATE_COST[entity.entity.currentTickRateIndex] ? "disabled" : ""}>
+            Upgrade (${UPGRADE_TICK_RATE_COST[entity.entity.currentTickRateIndex]} dots)
           </button>
           <button class="delete-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}">Delete</button>
         </div>
@@ -511,15 +484,15 @@ function showContextPanel(entities: Entity[], screenX: number, screenY: number):
       const entityIndex = parseInt((btn as HTMLButtonElement).dataset.entityIndex!);
 
       if (entityType === "producer") {
-        if (dotCount >= UPGRADE_TICK_RATE_COST) {
+        if (dotCount >= UPGRADE_TICK_RATE_COST[producers[entityIndex].currentTickRateIndex]) {
           producers[entityIndex].upgradeTickRate();
-          dotCount -= UPGRADE_TICK_RATE_COST;
+          dotCount -= UPGRADE_TICK_RATE_COST[producers[entityIndex].currentTickRateIndex];
           showContextPanel(entities, screenX, screenY); // Refresh display
         }
       } else {
-        if (dotCount >= UPGRADE_TICK_RATE_COST) {
+        if (dotCount >= UPGRADE_TICK_RATE_COST[consumers[entityIndex].currentTickRateIndex]) {
           consumers[entityIndex].upgradeTickRate();
-          dotCount -= UPGRADE_TICK_RATE_COST;
+          dotCount -= UPGRADE_TICK_RATE_COST[consumers[entityIndex].currentTickRateIndex];
           showContextPanel(entities, screenX, screenY); // Refresh display
         }
       }
@@ -542,19 +515,38 @@ function showContextPanel(entities: Entity[], screenX: number, screenY: number):
   });
 }
 
-canvas.addEventListener("click", (event) => {
+// Prevent default drag behaviors on canvas
+canvas.addEventListener("dragover", (event) => {
+  if (selectedShopItem) {
+    event.preventDefault();
+    (event.dataTransfer as DataTransfer).dropEffect = "move";
+    hoveredGridCell = screenToGrid(event.clientX, event.clientY);
+  }
+});
+
+canvas.addEventListener("dragenter", (event) => {
+  if (selectedShopItem) {
+    event.preventDefault();
+  }
+});
+
+// Handle dropping items on canvas
+canvas.addEventListener("drop", (event) => {
+  event.preventDefault();
+  
   if (!selectedShopItem) return;
   if (dotCount < selectedShopItem.cost) return;
 
   const pos = screenToGrid(event.clientX, event.clientY);
 
-  // Optional: prevent placement outside bounds
+  // Prevent placement outside bounds
   if (
     pos.x < 0 ||
     pos.y < 0 ||
     pos.x + selectedShopItem.width > grid.width ||
     pos.y + selectedShopItem.height > grid.height
   ) {
+    selectedShopItem = null;
     return;
   }
 
@@ -570,14 +562,14 @@ canvas.addEventListener("click", (event) => {
     );
   }
 
-  selectedShopItem = null; // or keep selected for repeat placement
+  selectedShopItem = null;
   renderShop();
 });
 
 canvas.addEventListener("mousemove", (event) => {
   hoveredGridCell = screenToGrid(event.clientX, event.clientY);
   
-  // Show context panel if hovering over entities (and not placing a new item)
+  // Show context panel if hovering over entities (and not dragging a new item)
   if (!selectedShopItem && hoveredGridCell) {
     const entities = getEntitiesAtGridCell(hoveredGridCell.x, hoveredGridCell.y);
     if (entities.length > 0) {
@@ -590,7 +582,9 @@ canvas.addEventListener("mousemove", (event) => {
 
 canvas.addEventListener("mouseleave", () => {
   hoveredGridCell = null;
-  scheduleContextPanelHide();
+  if (!selectedShopItem) {
+    scheduleContextPanelHide();
+  }
 });
 
 // Add listeners to context panel to keep it visible when hovering over it
@@ -605,7 +599,6 @@ contextPanel.addEventListener("mouseleave", () => {
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
   selectedShopItem = null;
-  renderShop();
 });
 
 renderShop();
@@ -693,6 +686,16 @@ function drawEntityBounds(): void {
 
 function drawHoveredShopItem(): void {
   if (selectedShopItem && hoveredGridCell) {
+    // Check if the hovered cell is within valid bounds
+    if (
+      hoveredGridCell.x < 0 ||
+      hoveredGridCell.y < 0 ||
+      hoveredGridCell.x >= grid.width ||
+      hoveredGridCell.y >= grid.height
+    ) {
+      return;
+    }
+
     const cellWidth = canvas.clientWidth / grid.width;
     const cellHeight = canvas.clientHeight / grid.height;
 
@@ -711,14 +714,21 @@ function drawHoveredShopItem(): void {
 function updateShopButtons(): void {
   for (const { button, item } of shopButtons) {
     button.disabled = dotCount < item.cost;
-    
-    // Update selected class
-    if (selectedShopItem?.id === item.id) {
-      button.classList.add("selected");
-    } else {
-      button.classList.remove("selected");
-    }
   }
+}
+
+function drawStats(): void {
+  let dotText = dotCount.toString();
+  if(dotCount >= 1000 && dotCount < 1000000) {
+    dotText = (dotCount / 1000).toFixed(1) + "K";
+  }
+  else if(dotCount >= 1000000 && dotCount < 1000000000) {
+    dotText = (dotCount / 1000000).toFixed(1) + "M";
+  }
+  else if(dotCount >= 1000000000 && dotCount < 1000000000000) {
+    dotText = (dotCount / 1000000000).toFixed(1) + "B";
+  }
+  statsEl.textContent = `Dots: ${dotText} \t Dot Production/s: ${dotProductionRate} \t Dot Consumption/s: ${dotConsumptionRate}`;
 }
 
 function render(): void {
@@ -736,17 +746,7 @@ function render(): void {
 
   drawEntityBounds();
 
-  let dotText = dotCount.toString();
-  if(dotCount >= 1000 && dotCount < 1000000) {
-    dotText = (dotCount / 1000).toFixed(1) + "K";
-  }
-  else if(dotCount >= 1000000 && dotCount < 1000000000) {
-    dotText = (dotCount / 1000000).toFixed(1) + "M";
-  }
-  else if(dotCount >= 1000000000 && dotCount < 1000000000000) {
-    dotText = (dotCount / 1000000000).toFixed(1) + "B";
-  }
-  statsEl.textContent = `Dots: ${dotText} \t Dot Production/s: ${dotProductionRate} \t Dot Consumption/s: ${dotConsumptionRate}`;
+  drawStats();
 
   drawHoveredShopItem();
 }
