@@ -1,6 +1,5 @@
 import { SHOP_ITEMS } from "./shopItems.ts";
 import { type ShopItem } from "./shopItems.ts";
-import { Producer, Consumer } from "../entities/actor.ts";
 import { gameState } from "../game.ts";
 import { grid } from "../grid.ts";
 
@@ -9,17 +8,9 @@ export class ShopUI {
   shopButtons: { button: HTMLButtonElement; item: ShopItem }[] = [];
 
   private shopEl: HTMLDivElement;
-  private onPlaceProducer: (producer: Producer) => void;
-  private onPlaceConsumer: (consumer: Consumer) => void;
 
-  constructor(
-    shopEl: HTMLDivElement,
-    onPlaceProducer: (producer: Producer) => void,
-    onPlaceConsumer: (consumer: Consumer) => void
-  ) {
+  constructor(shopEl: HTMLDivElement) {
     this.shopEl = shopEl;
-    this.onPlaceProducer = onPlaceProducer;
-    this.onPlaceConsumer = onPlaceConsumer;
   }
 
   render(): void {
@@ -73,26 +64,17 @@ export class ShopUI {
       return false;
     }
 
-    gameState.dotCount -= this.selectedItem.cost;
+    const item = this.selectedItem;
+    gameState.dotCount -= item.cost;
 
-    if (this.selectedItem.kind === "producer") {
-      const producer = new Producer(
-        gridX,
-        gridY,
-        this.selectedItem.width,
-        this.selectedItem.height,
-        gameState.GLOBAL_PHASE
+    if (item.kind === "producer") {
+      gameState.producers.push(
+        item.createActor(gridX, gridY, item.width, item.height, gameState.GLOBAL_PHASE)
       );
-      this.onPlaceProducer(producer);
     } else {
-      const consumer = new Consumer(
-        gridX,
-        gridY,
-        this.selectedItem.width,
-        this.selectedItem.height,
-        gameState.GLOBAL_PHASE
+      gameState.consumers.push(
+        item.createActor(gridX, gridY, item.width, item.height, gameState.GLOBAL_PHASE)
       );
-      this.onPlaceConsumer(consumer);
     }
 
     this.selectedItem = null;

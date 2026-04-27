@@ -1,5 +1,5 @@
 import { secondsPerTick, TICK_RATE_PROGRESSION } from "./constants.ts";
-import { Producer, Consumer } from "./entities/actor.ts";
+import { type Producer, type Consumer } from "./entities/actor.ts";
 
 export class GameState {
   dotCount = 20;
@@ -25,7 +25,7 @@ export class GameState {
 
     // Update all consumers
     for (let i = 0; i < this.consumers.length; i++) {
-      let dotsConsumed = this.consumers[i].update(deltaTime);
+      const dotsConsumed = this.consumers[i].update(deltaTime);
       this.dotCount += dotsConsumed;
       this.dotsConsumedCurrentSecond += dotsConsumed;
     }
@@ -42,9 +42,8 @@ export class GameState {
       this.dotTick += secondsPerTick(1);
     }
 
-    
-      this.GLOBAL_PHASE++;
-      this.GLOBAL_PHASE %= gameState.TICK_RATE;
+    this.GLOBAL_PHASE++;
+    this.GLOBAL_PHASE %= this.TICK_RATE;
   }
 }
 

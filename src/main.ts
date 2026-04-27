@@ -1,4 +1,13 @@
 import "./style.css";
+import { secondsPerTick } from "./constants.ts";
+import { gameState } from "./game.ts";
+import { grid } from "./grid.ts";
+import { ShopUI } from "./shop/shopUI.ts";
+import { ContextMenu } from "./ui/contextMenu.ts";
+
+/* =========================
+   APP SHELL
+========================= */
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -68,42 +77,19 @@ if(!boundsBtn) {
   throw new Error("Could not find bounds button");
 }
 
-const contextPanel = document.querySelector<HTMLDivElement>("#context-panel")!;
-if(!contextPanel) {
+const contextPanelEl = document.querySelector<HTMLDivElement>("#context-panel")!;
+if(!contextPanelEl) {
   throw new Error("Could not find context panel");
 }
-
-let contextPanelHideTimeout: number | null = null;
-
-/* =========================
-   WORLD
-========================= */
-import { grid } from "./grid.ts";
-import { Producer, Consumer } from "./entities/actor.ts";
-import { secondsPerTick, TICK_RATE_PROGRESSION, UPGRADE_TICK_RATE_COST} from "./constants.ts";
-
-/* =========================
-   SIMULATION UPDATE
-========================= */
-import { gameState } from "./game.ts";
 
 /* =========================
    SHOP / UI
 ========================= */
 
-import { ShopUI } from "./shop/shopUI.ts";
-
 let hoveredGridCell: { x: number; y: number } | null = null;
 
-let shop: ShopUI;
-
-// Initialize shop with callbacks to add entities to game state
-shop = new ShopUI(
-  shopEl,
-  (producer) => gameState.producers.push(producer),
-  (consumer) => gameState.consumers.push(consumer)
-);
-
+const shop = new ShopUI(shopEl);
+const contextMenu = new ContextMenu(contextPanelEl, canvas.parentElement ?? canvas);
 
 function screenToGrid(clientX: number, clientY: number): { x: number; y: number } {
   const rect = canvas.getBoundingClientRect();
@@ -120,137 +106,9 @@ function screenToGrid(clientX: number, clientY: number): { x: number; y: number 
   };
 }
 
-type Entity = { type: "producer"; entity: Producer; index: number } | { type: "consumer"; entity: Consumer; index: number };
-
-function getEntitiesAtGridCell(gridX: number, gridY: number): Entity[] {
-  const entities: Entity[] = [];
-
-  // Check producers
-  for (let i = 0; i < gameState.producers.length; i++) {
-    const producer = gameState.producers[i];
-    if (gridX >= producer.beginX && gridX < producer.beginX + producer.width &&
-        gridY >= producer.beginY && gridY < producer.beginY + producer.height) {
-      entities.push({ type: "producer", entity: producer, index: i });
-    }
-  }
-
-  // Check consumers
-  for (let i = 0; i < gameState.consumers.length; i++) {
-    const consumer = gameState.consumers[i];
-    if (gridX >= consumer.beginX && gridX < consumer.beginX + consumer.width &&
-        gridY >= consumer.beginY && gridY < consumer.beginY + consumer.height) {
-      entities.push({ type: "consumer", entity: consumer, index: i });
-    }
-  }
-
-  return entities;
-}
-
-function hideContextPanel(): void {
-  contextPanel.style.display = "none";
-}
-
-function scheduleContextPanelHide(): void {
-  if (contextPanelHideTimeout) {
-    clearTimeout(contextPanelHideTimeout);
-  }
-  contextPanelHideTimeout = setTimeout(() => {
-    hideContextPanel();
-    contextPanelHideTimeout = null;
-  }, 120); // 120ms delay
-}
-
-function cancelContextPanelHide(): void {
-  if (contextPanelHideTimeout) {
-    clearTimeout(contextPanelHideTimeout);
-    contextPanelHideTimeout = null;
-  }
-}
-
-function showContextPanel(entities: Entity[], screenX: number, screenY: number): void {
-  if (entities.length === 0) {
-    contextPanel.style.display = "none";
-    return;
-  }
-
-  let html = "";
-  entities.forEach((entity, idx) => {
-    const typeName = entity.type === "producer" ? "Producer" : "Consumer";
-    const currentTickRate = TICK_RATE_PROGRESSION[entity.entity.currentTickRateIndex];
-    const nextTickRateIndex = entity.entity.currentTickRateIndex + 1;
-    const canUpgrade = nextTickRateIndex < TICK_RATE_PROGRESSION.length;
-    const nextTickRate = canUpgrade ? TICK_RATE_PROGRESSION[nextTickRateIndex] : currentTickRate;
-
-    html += `
-      <div class="entity-info">
-        <div class="entity-header">${typeName} #${idx + 1}</div>
-        <div class="entity-details">
-          <div>Speed: ${currentTickRate}/s ${canUpgrade ? `→ ${nextTickRate}/s` : "(max)"}</div>
-          <button class="upgrade-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}" ${!canUpgrade || gameState.dotCount < UPGRADE_TICK_RATE_COST[entity.entity.currentTickRateIndex] ? "disabled" : ""}>
-            Upgrade (${UPGRADE_TICK_RATE_COST[entity.entity.currentTickRateIndex]} dots)
-          </button>
-          <button class="delete-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}">Delete</button>
-        </div>
-      </div>
-    `;
-  });
-
-  contextPanel.innerHTML = html;
-  contextPanel.style.display = "block";
-  
-  // Convert viewport-relative coordinates to canvas-wrap-relative coordinates
-  const canvasWrap = canvas.parentElement;
-  if (canvasWrap) {
-    const canvasWrapRect = canvasWrap.getBoundingClientRect();
-    const relativeX = screenX - canvasWrapRect.left;
-    const relativeY = screenY - canvasWrapRect.top;
-    
-    const offsetX = 8;
-    const offsetY = 8;
-    contextPanel.style.left = (relativeX + offsetX) + "px";
-    contextPanel.style.top = (relativeY + offsetY) + "px";
-  }
-  
-  // Cancel any pending hide when showing
-  cancelContextPanelHide();
-
-  // Add event listeners to buttons
-  contextPanel.querySelectorAll(".upgrade-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      const entityType = (btn as HTMLButtonElement).dataset.entityType as "producer" | "consumer";
-      const entityIndex = parseInt((btn as HTMLButtonElement).dataset.entityIndex!);
-
-      if (entityType === "producer") {
-        if (gameState.dotCount >= UPGRADE_TICK_RATE_COST[gameState.producers[entityIndex].currentTickRateIndex]) {
-          gameState.producers[entityIndex].upgradeTickRate();
-          gameState.dotCount -= UPGRADE_TICK_RATE_COST[gameState.producers[entityIndex].currentTickRateIndex];
-          showContextPanel(entities, screenX, screenY); // Refresh display
-        }
-      } else {
-        if (gameState.dotCount >= UPGRADE_TICK_RATE_COST[gameState.consumers[entityIndex].currentTickRateIndex]) {
-          gameState.consumers[entityIndex].upgradeTickRate();
-          gameState.dotCount -= UPGRADE_TICK_RATE_COST[gameState.consumers[entityIndex].currentTickRateIndex];
-          showContextPanel(entities, screenX, screenY); // Refresh display
-        }
-      }
-    });
-  });
-
-  contextPanel.querySelectorAll(".delete-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      const entityType = (btn as HTMLButtonElement).dataset.entityType as "producer" | "consumer";
-      const entityIndex = parseInt((btn as HTMLButtonElement).dataset.entityIndex!);
-
-      if (entityType === "producer") {
-        gameState.producers.splice(entityIndex, 1);
-      } else {
-        gameState.consumers.splice(entityIndex, 1);
-      }
-      
-      contextPanel.style.display = "none";
-    });
-  });
-}
+/* =========================
+   CANVAS INPUT
+========================= */
 
 // Prevent default drag behaviors on canvas
 canvas.addEventListener("dragover", (event) => {
@@ -282,29 +140,15 @@ canvas.addEventListener("mousemove", (event) => {
   
   // Show context panel if hovering over entities (and not dragging a new item)
   if (!shop.selectedItem && hoveredGridCell) {
-    const entities = getEntitiesAtGridCell(hoveredGridCell.x, hoveredGridCell.y);
-    if (entities.length > 0) {
-      showContextPanel(entities, event.clientX, event.clientY);
-    } else {
-      scheduleContextPanelHide();
-    }
+    contextMenu.showForCell(hoveredGridCell.x, hoveredGridCell.y, event.clientX, event.clientY);
   }
 });
 
 canvas.addEventListener("mouseleave", () => {
   hoveredGridCell = null;
   if (!shop.selectedItem) {
-    scheduleContextPanelHide();
+    contextMenu.scheduleHide();
   }
-});
-
-// Add listeners to context panel to keep it visible when hovering over it
-contextPanel.addEventListener("mouseenter", () => {
-  cancelContextPanelHide();
-});
-
-contextPanel.addEventListener("mouseleave", () => {
-  scheduleContextPanelHide();
 });
 
 canvas.addEventListener("contextmenu", (event) => {
@@ -329,7 +173,7 @@ function drawGrid(): void {
   const cellWidth = canvas.clientWidth / grid.width;
   const cellHeight = canvas.clientHeight / grid.height;
 
-    // Optional subtle grid background:
+  // Optional subtle grid background:
   ctx.fillStyle = "#1b1b1b";
   for (let y = 0; y < grid.height; y++) {
     for (let x = 0; x < grid.width; x++) {
