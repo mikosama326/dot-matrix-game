@@ -37,7 +37,7 @@ app.innerHTML = `
             Welcome to Dot Matrix! This is a simple incremental game where you can place producers and consumers on a grid. Producers generate dots, while consumers consume them and add to your dot count. Spend your dots to buy more producers and consumers, upgrade their speed, and experiment with different layouts to maximize your dot production!
           </p>
           <p>
-            To get started, select add a 2x2 producer from the shop and place it on the grid. Then add a 2x2 consumer and place it so they overlap. That'll start getting you dots to progress through the game.
+            To get started, drag and drop a 2x2 producer from the shop and place it on the grid. Then add a 2x2 consumer and place it so they overlap. That'll start getting you dots to progress through the game.
           </p>
           <h2>Shop</h2>
           <div id="shop"></div>
@@ -135,6 +135,13 @@ canvas.addEventListener("drop", (event) => {
   shop.tryPlaceItem(pos.x, pos.y);
 });
 
+canvas.addEventListener("click", (event) => {
+  if (shop.selectedItem) return;
+
+  const pos = screenToGrid(event.clientX, event.clientY);
+  contextMenu.pinForCell(pos.x, pos.y, event.clientX, event.clientY);
+});
+
 canvas.addEventListener("mousemove", (event) => {
   hoveredGridCell = screenToGrid(event.clientX, event.clientY);
   
@@ -147,12 +154,25 @@ canvas.addEventListener("mousemove", (event) => {
 canvas.addEventListener("mouseleave", () => {
   hoveredGridCell = null;
   if (!shop.selectedItem) {
-    contextMenu.scheduleHide();
+    contextMenu.hideIfUnpinned();
   }
 });
 
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
+  contextMenu.dismiss();
+});
+
+document.addEventListener("click", (event) => {
+  if (event.target === canvas || contextMenu.containsTarget(event.target)) {
+    return;
+  }
+
+  contextMenu.dismiss();
+});
+
+document.addEventListener("contextmenu", () => {
+  contextMenu.dismiss();
 });
 
 /* =========================
@@ -326,6 +346,7 @@ function frame(time: number): void {
 
   render();
   shop.updateButtonStates();
+  contextMenu.refresh();
   requestAnimationFrame(frame);
 }
 

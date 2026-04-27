@@ -1,13 +1,31 @@
 import { SHOP_ITEMS } from "./shopItems.ts";
 import { type ShopItem } from "./shopItems.ts";
+import { TICK_RATE_PROGRESSION, UPGRADE_TICK_RATE_COST } from "../constants.ts";
 import { gameState } from "../game.ts";
 import { grid } from "../grid.ts";
 
+type SelectedShopItem = {
+  item: ShopItem;
+  level: number;
+  cost: number;
+  width: number;
+  height: number;
+};
+
+type ShopEntry = {
+  item: ShopItem;
+  placeButton: HTMLButtonElement;
+  levelText: HTMLSpanElement;
+  minusButton: HTMLButtonElement;
+  plusButton: HTMLButtonElement;
+};
+
 export class ShopUI {
-  selectedItem: ShopItem | null = null;
-  shopButtons: { button: HTMLButtonElement; item: ShopItem }[] = [];
+  selectedItem: SelectedShopItem | null = null;
+  shopEntries: ShopEntry[] = [];
 
   private shopEl: HTMLDivElement;
+  private selectedLevels = new Map<string, number>();
 
   constructor(shopEl: HTMLDivElement) {
     this.shopEl = shopEl;
@@ -15,38 +33,99 @@ export class ShopUI {
 
   render(): void {
     this.shopEl.innerHTML = "";
-    this.shopButtons = [];
+    this.shopEntries = [];
 
     for (const item of SHOP_ITEMS) {
-      const button = document.createElement("button");
-      button.textContent = `${item.name} ${item.width}x${item.height} - ${item.cost} dots`;
-      button.disabled = gameState.dotCount < item.cost;
-      button.draggable = true;
+      const row = document.createElement("div");
+      row.className = "shop-item";
 
-      button.addEventListener("dragstart", (e) => {
-        if (gameState.dotCount < item.cost) {
+      const placeButton = document.createElement("button");
+      placeButton.className = "shop-place-btn";
+      placeButton.draggable = true;
+
+      const preview = this.createItemPreview(item);
+      const placeLabel = document.createElement("span");
+      placeLabel.className = "shop-place-label";
+
+      const levelControls = document.createElement("div");
+      levelControls.className = "shop-level-controls";
+
+      const minusButton = document.createElement("button");
+      minusButton.className = "shop-level-btn";
+      minusButton.type = "button";
+      minusButton.textContent = "-";
+
+      const levelText = document.createElement("span");
+      levelText.className = "shop-level-text";
+
+      const plusButton = document.createElement("button");
+      plusButton.className = "shop-level-btn";
+      plusButton.type = "button";
+      plusButton.textContent = "+";
+
+      minusButton.addEventListener("click", () => {
+        this.changeSelectedLevel(item.id, -1);
+        this.updateButtonStates();
+      });
+
+      plusButton.addEventListener("click", () => {
+        this.changeSelectedLevel(item.id, 1);
+        this.updateButtonStates();
+      });
+
+      placeButton.addEventListener("dragstart", (e) => {
+        const level = this.getSelectedLevel(item.id);
+        const cost = this.getPlacementCost(item, level);
+
+        if (gameState.dotCount < cost) {
           e.preventDefault();
           return;
         }
-        this.selectedItem = item;
+
+        this.selectedItem = {
+          item,
+          level,
+          cost,
+          width: item.width,
+          height: item.height,
+        };
         (e.dataTransfer as DataTransfer).effectAllowed = "move";
         (e.dataTransfer as DataTransfer).setDragImage(new Image(), 0, 0);
       });
 
-      button.addEventListener("dragend", (e) => {
+      placeButton.addEventListener("dragend", (e) => {
         if ((e.dataTransfer as DataTransfer).dropEffect === "none") {
           this.selectedItem = null;
         }
       });
 
-      this.shopButtons.push({ button, item });
-      this.shopEl.appendChild(button);
+      levelControls.append(minusButton, levelText, plusButton);
+      row.append(placeButton, levelControls);
+      this.shopEl.appendChild(row);
+
+      this.shopEntries.push({ item, placeButton, levelText, minusButton, plusButton });
+      placeButton.append(preview, placeLabel);
     }
+
+    this.updateButtonStates();
   }
 
   updateButtonStates(): void {
-    for (const { button, item } of this.shopButtons) {
-      button.disabled = gameState.dotCount < item.cost;
+    for (const entry of this.shopEntries) {
+      const level = this.getSelectedLevel(entry.item.id);
+      const cost = this.getPlacementCost(entry.item, level);
+      const tickRate = TICK_RATE_PROGRESSION[level];
+
+      const label = entry.placeButton.querySelector<HTMLSpanElement>(".shop-place-label");
+      if (!label) return;
+
+      label.textContent =
+        `${entry.item.name} ${entry.item.width}x${entry.item.height} ` +
+        `Lv ${level + 1} (${tickRate}/s) - ${cost} dots`;
+      entry.placeButton.disabled = gameState.dotCount < cost;
+      entry.levelText.textContent = `Lv ${level + 1}`;
+      entry.minusButton.disabled = level <= 0;
+      entry.plusButton.disabled = level >= TICK_RATE_PROGRESSION.length - 1;
     }
   }
 
@@ -64,21 +143,61 @@ export class ShopUI {
       return false;
     }
 
-    const item = this.selectedItem;
-    gameState.dotCount -= item.cost;
+    const selectedItem = this.selectedItem;
+    const item = selectedItem.item;
+    gameState.dotCount -= selectedItem.cost;
 
     if (item.kind === "producer") {
-      gameState.producers.push(
-        item.createActor(gridX, gridY, item.width, item.height, gameState.GLOBAL_PHASE)
-      );
+      const producer = item.createActor(gridX, gridY, item.width, item.height, gameState.GLOBAL_PHASE);
+      producer.setTickRateIndex(selectedItem.level);
+      gameState.producers.push(producer);
     } else {
-      gameState.consumers.push(
-        item.createActor(gridX, gridY, item.width, item.height, gameState.GLOBAL_PHASE)
-      );
+      const consumer = item.createActor(gridX, gridY, item.width, item.height, gameState.GLOBAL_PHASE);
+      consumer.setTickRateIndex(selectedItem.level);
+      gameState.consumers.push(consumer);
     }
 
     this.selectedItem = null;
     this.render();
     return true;
+  }
+
+  private getSelectedLevel(itemId: string): number {
+    return this.selectedLevels.get(itemId) ?? 0;
+  }
+
+  private changeSelectedLevel(itemId: string, delta: number): void {
+    const nextLevel = Math.max(
+      0,
+      Math.min(this.getSelectedLevel(itemId) + delta, TICK_RATE_PROGRESSION.length - 1)
+    );
+    this.selectedLevels.set(itemId, nextLevel);
+  }
+
+  private getPlacementCost(item: ShopItem, level: number): number {
+    let cost = item.cost;
+
+    for (let i = 0; i < level; i++) {
+      cost += UPGRADE_TICK_RATE_COST[i];
+    }
+
+    return cost;
+  }
+
+  private createItemPreview(item: ShopItem): HTMLSpanElement {
+    const preview = document.createElement("span");
+    preview.className = `shop-item-preview ${item.kind}`;
+    preview.style.setProperty("--item-width", String(item.width));
+    preview.style.setProperty("--item-height", String(item.height));
+    preview.dataset.size = `${item.width}x${item.height}`;
+    preview.setAttribute("aria-hidden", "true");
+
+    for (let i = 0; i < item.width * item.height; i++) {
+      const cell = document.createElement("span");
+      cell.className = "shop-item-preview-cell";
+      preview.appendChild(cell);
+    }
+
+    return preview;
   }
 }

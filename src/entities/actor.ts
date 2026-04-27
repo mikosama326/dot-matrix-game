@@ -40,6 +40,15 @@ export class Actor {
     }
     this.tickCounter = secondsPerTick(TICK_RATE_PROGRESSION[this.currentTickRateIndex]);
   }
+
+  setTickRateIndex(tickRateIndex: number)
+  {
+    this.currentTickRateIndex = Math.max(
+      0,
+      Math.min(tickRateIndex, TICK_RATE_PROGRESSION.length - 1)
+    );
+    this.tickCounter = secondsPerTick(TICK_RATE_PROGRESSION[this.currentTickRateIndex]);
+  }
 }
 
 export class Producer extends Actor {

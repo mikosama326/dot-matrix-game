@@ -7,7 +7,8 @@ type Entity =
   | { type: "consumer"; entity: Consumer; index: number };
 
 export class ContextMenu {
-  private hideTimeout: number | null = null;
+  private isPinned = false;
+  private currentEntities: Entity[] = [];
   private readonly panel: HTMLDivElement;
   private readonly anchorElement: HTMLElement;
 
@@ -18,53 +19,77 @@ export class ContextMenu {
     this.panel = panel;
     this.anchorElement = anchorElement;
 
-    this.panel.addEventListener("mouseenter", () => {
-      this.cancelHide();
-    });
-
     this.panel.addEventListener("mouseleave", () => {
-      this.scheduleHide();
+      this.hideIfUnpinned();
     });
   }
 
-  showForCell(gridX: number, gridY: number, screenX: number, screenY: number): void {
+  showForCell(gridX: number, gridY: number, screenX: number, screenY: number): boolean {
+    if (this.isPinned) {
+      return true;
+    }
+
     const entities = this.getEntitiesAtGridCell(gridX, gridY);
 
     if (entities.length === 0) {
-      this.scheduleHide();
-      return;
+      this.hideIfUnpinned();
+      return false;
     }
 
     this.show(entities, screenX, screenY);
+    return true;
   }
 
-  scheduleHide(): void {
-    if (this.hideTimeout) {
-      clearTimeout(this.hideTimeout);
+  refresh(): void {
+    if (this.panel.style.display === "none" || this.currentEntities.length === 0) {
+      return;
     }
 
-    this.hideTimeout = setTimeout(() => {
-      this.hide();
-      this.hideTimeout = null;
-    }, 120);
+    this.updateUpgradeButtons();
   }
 
-  private cancelHide(): void {
-    if (this.hideTimeout) {
-      clearTimeout(this.hideTimeout);
-      this.hideTimeout = null;
+  pinForCell(gridX: number, gridY: number, screenX: number, screenY: number): boolean {
+    const entities = this.getEntitiesAtGridCell(gridX, gridY);
+
+    if (entities.length === 0) {
+      this.dismiss();
+      return false;
     }
+
+    this.isPinned = true;
+    this.show(entities, screenX, screenY);
+    this.panel.classList.add("pinned");
+    return true;
+  }
+
+  hideIfUnpinned(): void {
+    if (this.isPinned) {
+      return;
+    }
+
+    this.hide();
+  }
+
+  dismiss(): void {
+    this.isPinned = false;
+    this.panel.classList.remove("pinned");
+    this.hide();
+  }
+
+  containsTarget(target: EventTarget | null): boolean {
+    return target instanceof Node && this.panel.contains(target);
   }
 
   private hide(): void {
     this.panel.style.display = "none";
+    this.currentEntities = [];
   }
 
   private show(entities: Entity[], screenX: number, screenY: number): void {
+    this.currentEntities = entities;
     this.panel.innerHTML = this.renderEntities(entities);
     this.panel.style.display = "block";
     this.positionAt(screenX, screenY);
-    this.cancelHide();
     this.bindActionButtons(entities, screenX, screenY);
   }
 
@@ -126,11 +151,30 @@ export class ContextMenu {
 
   private positionAt(screenX: number, screenY: number): void {
     const anchorRect = this.anchorElement.getBoundingClientRect();
+    const panelRect = this.panel.getBoundingClientRect();
     const offsetX = 8;
     const offsetY = 8;
+    const padding = 8;
 
-    this.panel.style.left = `${screenX - anchorRect.left + offsetX}px`;
-    this.panel.style.top = `${screenY - anchorRect.top + offsetY}px`;
+    let left = screenX - anchorRect.left + offsetX;
+    let top = screenY - anchorRect.top + offsetY;
+
+    const maxLeft = anchorRect.width - panelRect.width - padding;
+    const maxTop = anchorRect.height - panelRect.height - padding;
+
+    if (left > maxLeft) {
+      left = screenX - anchorRect.left - panelRect.width - offsetX;
+    }
+
+    if (top > maxTop) {
+      top = screenY - anchorRect.top - panelRect.height - offsetY;
+    }
+
+    left = Math.max(padding, Math.min(left, maxLeft));
+    top = Math.max(padding, Math.min(top, maxTop));
+
+    this.panel.style.left = `${left}px`;
+    this.panel.style.top = `${top}px`;
   }
 
   private bindActionButtons(entities: Entity[], screenX: number, screenY: number): void {
@@ -155,8 +199,32 @@ export class ContextMenu {
           gameState.consumers.splice(entityIndex, 1);
         }
 
-        this.hide();
+        this.dismiss();
       });
+    });
+  }
+
+  private updateUpgradeButtons(): void {
+    this.panel.querySelectorAll(".upgrade-btn").forEach((btn) => {
+      const button = btn as HTMLButtonElement;
+      const entityType = button.dataset.entityType as "producer" | "consumer";
+      const entityIndex = Number(button.dataset.entityIndex);
+      const entity =
+        entityType === "producer"
+          ? gameState.producers[entityIndex]
+          : gameState.consumers[entityIndex];
+
+      if (!entity) {
+        button.disabled = true;
+        return;
+      }
+
+      const nextTickRateIndex = entity.currentTickRateIndex + 1;
+      const canUpgrade = nextTickRateIndex < TICK_RATE_PROGRESSION.length;
+      const upgradeCost = UPGRADE_TICK_RATE_COST[entity.currentTickRateIndex];
+
+      button.disabled = !canUpgrade || gameState.dotCount < upgradeCost;
+      button.textContent = `Upgrade (${upgradeCost} dots)`;
     });
   }
 

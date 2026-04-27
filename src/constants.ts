@@ -1,6 +1,6 @@
 // Grid dimensions
-export const GRID_WIDTH = 48;
-export const GRID_HEIGHT = 32;
+export const GRID_WIDTH = 72;
+export const GRID_HEIGHT = 48;
 
 // Simulation
 export const TICK_RATE_PROGRESSION = [2, 5, 10, 20, 30, 60];

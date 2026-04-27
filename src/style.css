@@ -35,14 +35,14 @@ button {
   height: 100%;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: 12px;
   background:
     radial-gradient(circle at top, #2b2b2b, #161616 60%);
 }
 
 .game-shell {
-  width: min(1280px, 100%);
-  height: min(720px, 100%);
+  width: 100%;
+  height: 100%;
   display: grid;
   grid-template-rows: 48px 1fr;
   border: 1px solid #3a3a3a;
@@ -93,7 +93,7 @@ button {
 
 .content {
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: minmax(0, 1fr) clamp(340px, 26vw, 460px);
   min-height: 0;
 }
 
@@ -121,16 +121,108 @@ button {
   margin-top: 0;
 }
 
+#shop {
+  display: grid;
+  gap: 8px;
+}
+
+.shop-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
 #shop button {
-  width: 100%;
   padding: 8px 12px;
-  margin-bottom: 8px;
   background: #2a2a2a;
   border: 1px solid #4a4a4a;
   border-radius: 6px;
   color: #f5f5f5;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+.shop-place-btn {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+}
+
+.shop-place-label {
+  min-width: 0;
+}
+
+.shop-item-preview {
+  --preview-max-width: 34px;
+  --preview-max-height: 34px;
+  --preview-color: #ffffff;
+  --preview-fill: rgba(255, 255, 255, 0.14);
+
+  justify-self: center;
+  display: grid;
+  grid-template-columns: repeat(var(--item-width), 1fr);
+  grid-template-rows: repeat(var(--item-height), 1fr);
+  gap: 1px;
+  width: min(
+    var(--preview-max-width),
+    calc(var(--item-width) / var(--item-height) * var(--preview-max-height))
+  );
+  height: min(
+    var(--preview-max-height),
+    calc(var(--item-height) / var(--item-width) * var(--preview-max-width))
+  );
+  border: 2px solid var(--preview-color);
+  border-radius: 3px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--preview-color) 45%, #111);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.shop-item-preview-cell {
+  min-width: 0;
+  min-height: 0;
+  background: color-mix(in srgb, var(--preview-color) 18%, transparent);
+}
+
+.shop-item-preview.producer {
+  --preview-color: #409bc8;
+  --preview-fill: rgba(92, 200, 255, 0.16);
+}
+
+.shop-item-preview.consumer {
+  --preview-color: #ba519c;
+  --preview-fill: rgba(255, 122, 217, 0.16);
+}
+
+.shop-level-controls {
+  display: grid;
+  grid-template-columns: 32px 48px 32px;
+  gap: 4px;
+  align-items: center;
+}
+
+#shop .shop-level-btn {
+  width: 32px;
+  height: 100%;
+  padding: 0;
+  text-align: center;
+}
+
+.shop-level-text {
+  display: grid;
+  place-items: center;
+  min-width: 48px;
+  padding: 0 4px;
+  border: 1px solid #3f3f3f;
+  border-radius: 6px;
+  color: #cccccc;
+  font-size: 0.85em;
+  white-space: nowrap;
 }
 
 #shop button:hover:not(:disabled) {
@@ -164,6 +256,10 @@ button {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   max-width: 220px;
   pointer-events: auto;
+}
+
+.context-panel.pinned {
+  border-color: #ffffff;
 }
 
 .entity-info {
@@ -225,4 +321,64 @@ button {
 
 .delete-btn {
   color: #ff5555;
+}
+
+@media (max-width: 780px) {
+  body {
+    overflow: auto;
+  }
+
+  #app {
+    min-height: 100vh;
+    height: auto;
+  }
+
+  .page {
+    min-height: 100vh;
+    height: auto;
+    padding: 8px;
+  }
+
+  .game-shell {
+    min-height: calc(100vh - 16px);
+    height: auto;
+    grid-template-rows: auto 1fr;
+  }
+
+  .top-bar {
+    min-height: 48px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .stats {
+    flex-basis: 100%;
+    margin-left: 0;
+    font-size: 0.85em;
+  }
+
+  .content {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(360px, 58vh) auto;
+  }
+
+  .side-panel {
+    border-left: none;
+    border-top: 1px solid #3a3a3a;
+    max-height: none;
+  }
+
+  .shop-item {
+    grid-template-columns: 1fr;
+  }
+
+  .shop-level-controls {
+    grid-template-columns: 40px 1fr 40px;
+  }
+
+  #shop .shop-level-btn {
+    width: 40px;
+    min-height: 36px;
+  }
 }
