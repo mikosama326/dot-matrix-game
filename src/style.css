@@ -165,19 +165,30 @@ button {
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: 44px 1fr;
-  gap: 10px;
+  gap: 6px;
+  justify-items: center;
   align-items: center;
-  text-align: left;
+  text-align: center;
 }
 
-.shop-place-label {
+.shop-item-name,
+.shop-item-cost {
   min-width: 0;
 }
 
+.shop-item-name {
+  font-weight: 700;
+}
+
+.shop-item-cost {
+  color: #d7d7d7;
+  font-size: 0.85em;
+}
+
 .shop-item-preview {
-  --preview-max-width: 34px;
-  --preview-max-height: 34px;
+  --preview-cell-size: 10px;
+  --preview-max-width: 150px;
+  --preview-max-height: 75px;
   --preview-color: #ffffff;
   --preview-fill: rgba(255, 255, 255, 0.14);
 
@@ -186,14 +197,8 @@ button {
   grid-template-columns: repeat(var(--item-width), 1fr);
   grid-template-rows: repeat(var(--item-height), 1fr);
   gap: 1px;
-  width: min(
-    var(--preview-max-width),
-    calc(var(--item-width) / var(--item-height) * var(--preview-max-height))
-  );
-  height: min(
-    var(--preview-max-height),
-    calc(var(--item-height) / var(--item-width) * var(--preview-max-width))
-  );
+  width: min(var(--preview-max-width), calc(var(--item-width) * var(--preview-cell-size)));
+  height: min(var(--preview-max-height), calc(var(--item-height) * var(--preview-cell-size)));
   border: 2px solid var(--preview-color);
   border-radius: 3px;
   overflow: hidden;
@@ -219,7 +224,7 @@ button {
 
 .shop-level-controls {
   display: grid;
-  grid-template-columns: 28px 44px 28px;
+  grid-template-columns: 28px 52px 28px;
   gap: 4px;
   align-items: center;
 }
@@ -251,15 +256,26 @@ button {
   border-color: #c75a5a;
 }
 
-.shop-level-text {
+.shop-level-readout {
   display: grid;
   place-items: center;
-  min-width: 44px;
+  min-width: 52px;
   padding: 0 4px;
   border: 1px solid #3f3f3f;
   border-radius: 6px;
+  background: #2a2a2a;
+}
+
+.shop-level-text {
   color: #cccccc;
+  font-weight: 700;
   font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.shop-speed-text {
+  color: #999999;
+  font-size: 0.72em;
   white-space: nowrap;
 }
 

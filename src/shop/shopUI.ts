@@ -15,7 +15,10 @@ type SelectedShopItem = {
 type ShopEntry = {
   item: ShopItem;
   placeButton: HTMLButtonElement;
+  itemName: HTMLSpanElement;
+  itemCost: HTMLSpanElement;
   levelText: HTMLSpanElement;
+  speedText: HTMLSpanElement;
   minusButton: HTMLButtonElement;
   plusButton: HTMLButtonElement;
 };
@@ -44,8 +47,11 @@ export class ShopUI {
       placeButton.draggable = true;
 
       const preview = this.createItemPreview(item);
-      const placeLabel = document.createElement("span");
-      placeLabel.className = "shop-place-label";
+      const itemName = document.createElement("span");
+      itemName.className = "shop-item-name";
+
+      const itemCost = document.createElement("span");
+      itemCost.className = "shop-item-cost";
 
       const levelControls = document.createElement("div");
       levelControls.className = "shop-level-controls";
@@ -55,8 +61,14 @@ export class ShopUI {
       minusButton.type = "button";
       minusButton.textContent = "-";
 
+      const levelReadout = document.createElement("div");
+      levelReadout.className = "shop-level-readout";
+
       const levelText = document.createElement("span");
       levelText.className = "shop-level-text";
+
+      const speedText = document.createElement("span");
+      speedText.className = "shop-speed-text";
 
       const plusButton = document.createElement("button");
       plusButton.className = "shop-level-btn shop-level-btn-plus";
@@ -99,12 +111,22 @@ export class ShopUI {
         }
       });
 
-      levelControls.append(minusButton, levelText, plusButton);
+      levelReadout.append(levelText, speedText);
+      levelControls.append(minusButton, levelReadout, plusButton);
       row.append(placeButton, levelControls);
       this.shopEl.appendChild(row);
 
-      this.shopEntries.push({ item, placeButton, levelText, minusButton, plusButton });
-      placeButton.append(preview, placeLabel);
+      this.shopEntries.push({
+        item,
+        placeButton,
+        itemName,
+        itemCost,
+        levelText,
+        speedText,
+        minusButton,
+        plusButton,
+      });
+      placeButton.append(itemName, preview, itemCost);
     }
 
     this.updateButtonStates();
@@ -116,14 +138,11 @@ export class ShopUI {
       const cost = this.getPlacementCost(entry.item, level);
       const tickRate = TICK_RATE_PROGRESSION[level];
 
-      const label = entry.placeButton.querySelector<HTMLSpanElement>(".shop-place-label");
-      if (!label) return;
-
-      label.textContent =
-        `${entry.item.name} ${entry.item.width}x${entry.item.height} ` +
-        `Lv ${level + 1} (${tickRate}/s) - ${cost} dots`;
+      entry.itemName.textContent = `${entry.item.name} ${entry.item.width}x${entry.item.height}`;
+      entry.itemCost.textContent = `${cost} dots`;
       entry.placeButton.disabled = gameState.dotCount < cost;
       entry.levelText.textContent = `Lv ${level + 1}`;
+      entry.speedText.textContent = `${tickRate}/s`;
       entry.minusButton.disabled = level <= 0;
       entry.plusButton.disabled = level >= TICK_RATE_PROGRESSION.length - 1;
     }
