@@ -51,7 +51,7 @@ export class ShopUI {
       levelControls.className = "shop-level-controls";
 
       const minusButton = document.createElement("button");
-      minusButton.className = "shop-level-btn";
+      minusButton.className = "shop-level-btn shop-level-btn-minus";
       minusButton.type = "button";
       minusButton.textContent = "-";
 
@@ -59,7 +59,7 @@ export class ShopUI {
       levelText.className = "shop-level-text";
 
       const plusButton = document.createElement("button");
-      plusButton.className = "shop-level-btn";
+      plusButton.className = "shop-level-btn shop-level-btn-plus";
       plusButton.type = "button";
       plusButton.textContent = "+";
 

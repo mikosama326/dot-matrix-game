@@ -219,22 +219,42 @@ button {
 
 .shop-level-controls {
   display: grid;
-  grid-template-columns: 32px 48px 32px;
+  grid-template-columns: 28px 44px 28px;
   gap: 4px;
   align-items: center;
 }
 
 #shop .shop-level-btn {
-  width: 32px;
-  height: 100%;
+  width: 28px;
+  min-height: 28px;
   padding: 0;
   text-align: center;
+}
+
+#shop .shop-level-btn-plus {
+  background: #244a2b;
+  border-color: #3f8f4b;
+}
+
+#shop .shop-level-btn-plus:hover:not(:disabled) {
+  background: #2d6136;
+  border-color: #55b864;
+}
+
+#shop .shop-level-btn-minus {
+  background: #562929;
+  border-color: #9b4545;
+}
+
+#shop .shop-level-btn-minus:hover:not(:disabled) {
+  background: #6b3333;
+  border-color: #c75a5a;
 }
 
 .shop-level-text {
   display: grid;
   place-items: center;
-  min-width: 48px;
+  min-width: 44px;
   padding: 0 4px;
   border: 1px solid #3f3f3f;
   border-radius: 6px;
@@ -392,11 +412,11 @@ button {
   }
 
   .shop-level-controls {
-    grid-template-columns: 40px 1fr 40px;
+    grid-template-columns: 36px 1fr 36px;
   }
 
   #shop .shop-level-btn {
-    width: 40px;
+    width: 36px;
     min-height: 36px;
   }
 }
