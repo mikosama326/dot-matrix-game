@@ -112,7 +112,7 @@ export class Consumer extends Actor {
     return dotsConsumed;
   }
 
-  private update_internal() : number
+  update_internal() : number
   {
     let dotsConsumed = 0;
     if(grid.get(this.currentX,this.currentY) > 0)
@@ -133,4 +133,182 @@ export class Consumer extends Actor {
     }
     return dotsConsumed;
   }
+}
+
+export class CircleProducer extends Producer {
+  constructor(beginX:number, beginY:number, width:number, height:number, phase: number)
+  {
+    super(beginX, beginY, width, height, phase);
+  }
+
+  update_internal() : number
+  {
+    let dotsProduced = 0;
+
+    this.advanceToNextCircleCell();
+
+    if (grid.get(this.currentX, this.currentY) === 0) {
+      grid.set(this.currentX, this.currentY, 1);
+      dotsProduced++;
+    }
+
+    this.advanceScanline();
+
+    return dotsProduced;
+  }
+
+  private advanceToNextCircleCell(): void
+  {
+    while (!isCellInCircle(this.currentX - this.beginX, this.currentY - this.beginY, this.width)) {
+      this.advanceScanline();
+    }
+  }
+
+  private advanceScanline(): void 
+  {
+    this.currentX++;
+
+    if (this.currentX >= this.beginX + this.width) 
+    {
+      this.currentX = this.beginX;
+      this.currentY++;
+
+      if (this.currentY >= this.beginY + this.height) 
+      {
+        this.reset();
+      }
+    }
+  }
+}
+
+export class CircleConsumer extends Consumer {
+
+  constructor(beginX:number, beginY:number, width:number, height:number, phase: number)
+  {
+    super(beginX, beginY, width, height, phase);
+  }
+
+  update_internal() : number
+  {
+    let dotsConsumed = 0;
+
+    this.advanceToNextCircleCell();
+
+    if (grid.get(this.currentX, this.currentY) === 1) {
+      grid.set(this.currentX, this.currentY, 0);
+      dotsConsumed++;
+    }
+
+    this.advanceScanline();
+
+    return dotsConsumed;
+  }
+
+  private advanceToNextCircleCell(): void
+  {
+    while (!isCellInCircle(this.currentX - this.beginX, this.currentY - this.beginY, this.width)) {
+      this.advanceScanline();
+    }
+  }
+
+  private advanceScanline(): void 
+  {
+    this.currentX++;
+
+    if (this.currentX >= this.beginX + this.width) 
+    {
+      this.currentX = this.beginX;
+      this.currentY++;
+
+      if (this.currentY >= this.beginY + this.height) 
+      {
+        this.reset();
+      }
+    }
+  }
+}
+
+export class ReverseProducer extends Producer {
+  constructor(beginX:number, beginY:number, width:number, height:number, phase: number)
+  {
+    super(beginX, beginY, width, height, phase);
+    this.currentX = this.beginX + this.width - 1;
+    this.currentY = this.beginY + this.height - 1;
+  }
+
+  reset(): void {
+    this.currentX = this.beginX + this.width - 1;
+    this.currentY = this.beginY + this.height - 1;
+  }
+
+  update_internal() : number
+  {
+    let dotsProduced = 0;
+    if(grid.get(this.currentX,this.currentY) === 0)
+    {
+      grid.set(this.currentX, this.currentY, 1);
+      dotsProduced++;
+    }
+
+    this.currentX--;
+    if(this.currentX < this.beginX)
+    {
+      this.currentX = this.beginX + this.width - 1;
+      this.currentY--;
+      if(this.currentY < this.beginY)
+      {
+        this.reset();
+      }
+    }
+    return dotsProduced;
+  }
+}
+
+export class ReverseConsumer extends Consumer {
+  constructor(beginX:number, beginY:number, width:number, height:number, phase: number)
+  {
+    super(beginX, beginY, width, height, phase);
+    this.currentX = this.beginX + this.width - 1;
+    this.currentY = this.beginY + this.height - 1;
+  }
+
+  reset(): void {
+    this.currentX = this.beginX + this.width - 1;
+    this.currentY = this.beginY + this.height - 1;
+  }
+
+  update_internal() : number
+  {
+    let dotsConsumed = 0;
+    if(grid.get(this.currentX,this.currentY) === 1)
+    {
+      grid.set(this.currentX, this.currentY, 0);
+      dotsConsumed++;
+    }
+
+    this.currentX--;
+    if(this.currentX < this.beginX)
+    {
+      this.currentX = this.beginX + this.width - 1;
+      this.currentY--;
+      if(this.currentY < this.beginY)
+      {
+        this.reset();
+      }
+    }
+    return dotsConsumed;
+  }
+}
+
+function isCellInCircle(localX: number, localY: number, size: number): boolean 
+{
+  const center = (size - 1) / 2;
+
+  const dx = localX - center;
+  const dy = localY - center;
+
+  // +0.5 makes edge cells a little more generous so small circles look nicer.
+  const radius = size / 2;
+
+  return dx * dx + dy * dy <= radius * radius;
 }
