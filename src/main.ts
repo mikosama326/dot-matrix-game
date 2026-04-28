@@ -22,7 +22,10 @@ app.innerHTML = `
         <div class="title">Dot Matrix</div>
         <button id="pause-btn" class="pause-btn">Pause</button>
         <button id="bounds-btn" class="pause-btn">Show Bounds</button>
-        <div class="stats" id="stats">Dots: 0</div>
+        <div class="stats" id="stats">
+          <div class="dot-count" id="dot-count">0 dots</div>
+          <div class="dot-rates" id="dot-rates">+0/s -0/s</div>
+        </div>
       </div>
 
       <div class="content">
@@ -55,6 +58,16 @@ if (!canvas) {
 const statsEl = document.querySelector<HTMLDivElement>("#stats")!;
 if (!statsEl) {
   throw new Error("Could not find stats element");
+}
+
+const dotCountEl = document.querySelector<HTMLDivElement>("#dot-count")!;
+if (!dotCountEl) {
+  throw new Error("Could not find dot count element");
+}
+
+const dotRatesEl = document.querySelector<HTMLDivElement>("#dot-rates")!;
+if (!dotRatesEl) {
+  throw new Error("Could not find dot rates element");
 }
 
 const ctx = canvas.getContext("2d")!;
@@ -295,7 +308,8 @@ function drawStats(): void {
   else if(gameState.dotCount >= 1000000000 && gameState.dotCount < 1000000000000) {
     dotText = (gameState.dotCount / 1000000000).toFixed(1) + "B";
   }
-  statsEl.textContent = `Dots: ${dotText} \t Dot Production/s: ${gameState.dotProductionRate} \t Dot Consumption/s: ${gameState.dotConsumptionRate}`;
+  dotCountEl.textContent = `${dotText} dots`;
+  dotRatesEl.textContent = `+${gameState.dotProductionRate}/s -${gameState.dotConsumptionRate}/s`;
 }
 
 function render(): void {

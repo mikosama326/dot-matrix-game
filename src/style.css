@@ -89,6 +89,24 @@ button {
 
 .stats {
   margin-left: auto;
+  margin-right: auto;
+  display: grid;
+  justify-items: center;
+  line-height: 1.1;
+  min-width: 220px;
+  text-align: center;
+}
+
+.dot-count {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.dot-rates {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: #b8b8b8;
 }
 
 .content {

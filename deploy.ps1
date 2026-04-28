@@ -1,4 +1,15 @@
+param(
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+    [string[]]$Message
+)
+
 # Build and deploy script for GitHub Pages
+$CommitMessage = if ($Message.Count -gt 0) {
+    $Message -join " "
+} else {
+    "Build and deploy"
+}
+
 Write-Host "Building project..." -ForegroundColor Cyan
 npm run build
 
@@ -9,7 +20,7 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "Committing changes..." -ForegroundColor Cyan
 git add .
-git commit -m "Build and deploy"
+git commit -m $CommitMessage
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Commit failed!" -ForegroundColor Red

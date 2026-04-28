@@ -1,6 +1,7 @@
 import { TICK_RATE_PROGRESSION, UPGRADE_TICK_RATE_COST } from "../constants.ts";
 import { type Consumer, type Producer } from "../entities/actor.ts";
 import { gameState } from "../game.ts";
+import { SHOP_ITEMS } from "../shop/shopItems.ts";
 
 type Entity =
   | { type: "producer"; entity: Producer; index: number }
@@ -132,6 +133,7 @@ export class ContextMenu {
         const nextTickRate = canUpgrade ? TICK_RATE_PROGRESSION[nextTickRateIndex] : currentTickRate;
         const upgradeCost = UPGRADE_TICK_RATE_COST[entity.entity.currentTickRateIndex];
         const upgradeDisabled = !canUpgrade || gameState.dotCount < upgradeCost;
+        const refundValue = this.getRefundValue(entity);
 
         return `
           <div class="entity-info">
@@ -141,7 +143,7 @@ export class ContextMenu {
               <button class="upgrade-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}" ${upgradeDisabled ? "disabled" : ""}>
                 Upgrade (${upgradeCost} dots)
               </button>
-              <button class="delete-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}">Delete</button>
+              <button class="delete-btn" data-entity-type="${entity.type}" data-entity-index="${entity.index}">Delete (+${refundValue} dots)</button>
             </div>
           </div>
         `;
@@ -193,15 +195,26 @@ export class ContextMenu {
         const entityType = (btn as HTMLButtonElement).dataset.entityType as "producer" | "consumer";
         const entityIndex = Number((btn as HTMLButtonElement).dataset.entityIndex);
 
-        if (entityType === "producer") {
-          gameState.producers.splice(entityIndex, 1);
-        } else {
-          gameState.consumers.splice(entityIndex, 1);
-        }
-
+        this.deleteEntity(entityType, entityIndex);
         this.dismiss();
       });
     });
+  }
+
+  private deleteEntity(entityType: "producer" | "consumer", entityIndex: number): void {
+    if (entityType === "producer") {
+      const entity = gameState.producers[entityIndex];
+      if (!entity) return;
+
+      gameState.dotCount += this.getRefundValue({ type: entityType, entity, index: entityIndex });
+      gameState.producers.splice(entityIndex, 1);
+    } else {
+      const entity = gameState.consumers[entityIndex];
+      if (!entity) return;
+
+      gameState.dotCount += this.getRefundValue({ type: entityType, entity, index: entityIndex });
+      gameState.consumers.splice(entityIndex, 1);
+    }
   }
 
   private updateUpgradeButtons(): void {
@@ -241,5 +254,26 @@ export class ContextMenu {
 
     gameState.dotCount -= upgradeCost;
     entity.upgradeTickRate();
+  }
+
+  private getRefundValue(entity: Entity): number {
+    let refundValue = this.getBaseCost(entity);
+
+    for (let i = 0; i < entity.entity.currentTickRateIndex; i++) {
+      refundValue += UPGRADE_TICK_RATE_COST[i];
+    }
+
+    return refundValue;
+  }
+
+  private getBaseCost(entity: Entity): number {
+    const matchingShopItem = SHOP_ITEMS.find(
+      (item) =>
+        item.kind === entity.type &&
+        item.width === entity.entity.width &&
+        item.height === entity.entity.height
+    );
+
+    return matchingShopItem?.cost ?? 0;
   }
 }
