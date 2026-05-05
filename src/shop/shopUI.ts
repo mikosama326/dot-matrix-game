@@ -85,22 +85,20 @@ export class ShopUI {
         this.updateButtonStates();
       });
 
-      placeButton.addEventListener("dragstart", (e) => {
-        const level = this.getSelectedLevel(item.id);
-        const cost = this.getPlacementCost(item, level);
+      placeButton.addEventListener("pointerdown", (e) => {
+        if (e.pointerType === "mouse") return;
 
-        if (gameState.dotCount < cost) {
+        if (!this.selectItemForPlacement(item)) return;
+
+        e.preventDefault();
+      });
+
+      placeButton.addEventListener("dragstart", (e) => {
+        if (!this.selectItemForPlacement(item)) {
           e.preventDefault();
           return;
         }
 
-        this.selectedItem = {
-          item,
-          level,
-          cost,
-          width: item.width,
-          height: item.height,
-        };
         (e.dataTransfer as DataTransfer).effectAllowed = "move";
         (e.dataTransfer as DataTransfer).setDragImage(new Image(), 0, 0);
       });
@@ -145,7 +143,13 @@ export class ShopUI {
       entry.speedText.textContent = `${tickRate}/s`;
       entry.minusButton.disabled = level <= 0;
       entry.plusButton.disabled = level >= TICK_RATE_PROGRESSION.length - 1;
+      entry.placeButton.classList.toggle("selected", this.selectedItem?.item.id === entry.item.id);
     }
+  }
+
+  cancelSelection(): void {
+    this.selectedItem = null;
+    this.updateButtonStates();
   }
 
   tryPlaceItem(gridX: number, gridY: number): boolean {
@@ -158,7 +162,7 @@ export class ShopUI {
       gridX + this.selectedItem.width > grid.width ||
       gridY + this.selectedItem.height > grid.height
     ) {
-      this.selectedItem = null;
+      this.cancelSelection();
       return false;
     }
 
@@ -178,6 +182,26 @@ export class ShopUI {
 
     this.selectedItem = null;
     this.render();
+    return true;
+  }
+
+  private selectItemForPlacement(item: ShopItem): boolean {
+    const level = this.getSelectedLevel(item.id);
+    const cost = this.getPlacementCost(item, level);
+
+    if (gameState.dotCount < cost) {
+      this.cancelSelection();
+      return false;
+    }
+
+    this.selectedItem = {
+      item,
+      level,
+      cost,
+      width: item.width,
+      height: item.height,
+    };
+    this.updateButtonStates();
     return true;
   }
 

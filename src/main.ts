@@ -100,9 +100,22 @@ if(!contextPanelEl) {
 ========================= */
 
 let hoveredGridCell: { x: number; y: number } | null = null;
+let touchPlacementPointerId: number | null = null;
+let suppressNextCanvasClick = false;
 
 const shop = new ShopUI(shopEl);
 const contextMenu = new ContextMenu(contextPanelEl, canvas.parentElement ?? canvas);
+
+function isPointInsideCanvas(clientX: number, clientY: number): boolean {
+  const rect = canvas.getBoundingClientRect();
+
+  return (
+    clientX >= rect.left &&
+    clientX <= rect.right &&
+    clientY >= rect.top &&
+    clientY <= rect.bottom
+  );
+}
 
 function screenToGrid(clientX: number, clientY: number): { x: number; y: number } {
   const rect = canvas.getBoundingClientRect();
@@ -149,10 +162,57 @@ canvas.addEventListener("drop", (event) => {
 });
 
 canvas.addEventListener("click", (event) => {
+  if (suppressNextCanvasClick) {
+    suppressNextCanvasClick = false;
+    event.preventDefault();
+    return;
+  }
+
   if (shop.selectedItem) return;
 
   const pos = screenToGrid(event.clientX, event.clientY);
   contextMenu.pinForCell(pos.x, pos.y, event.clientX, event.clientY);
+});
+
+document.addEventListener("pointermove", (event) => {
+  if (!shop.selectedItem || event.pointerType === "mouse") return;
+
+  touchPlacementPointerId ??= event.pointerId;
+  if (event.pointerId !== touchPlacementPointerId) return;
+
+  if (isPointInsideCanvas(event.clientX, event.clientY)) {
+    event.preventDefault();
+    hoveredGridCell = screenToGrid(event.clientX, event.clientY);
+    contextMenu.hideIfUnpinned();
+  } else {
+    hoveredGridCell = null;
+  }
+});
+
+document.addEventListener("pointerup", (event) => {
+  if (!shop.selectedItem || event.pointerType === "mouse") return;
+  if (touchPlacementPointerId !== null && event.pointerId !== touchPlacementPointerId) return;
+
+  suppressNextCanvasClick = isPointInsideCanvas(event.clientX, event.clientY);
+
+  if (suppressNextCanvasClick) {
+    const pos = screenToGrid(event.clientX, event.clientY);
+    shop.tryPlaceItem(pos.x, pos.y);
+  } else {
+    shop.cancelSelection();
+  }
+
+  hoveredGridCell = null;
+  touchPlacementPointerId = null;
+});
+
+document.addEventListener("pointercancel", (event) => {
+  if (event.pointerType === "mouse") return;
+  if (touchPlacementPointerId !== null && event.pointerId !== touchPlacementPointerId) return;
+
+  shop.cancelSelection();
+  hoveredGridCell = null;
+  touchPlacementPointerId = null;
 });
 
 canvas.addEventListener("mousemove", (event) => {
