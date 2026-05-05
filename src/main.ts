@@ -42,7 +42,7 @@ app.innerHTML = `
           <p>
             To get started, drag and drop a 2x2 producer from the shop and place it on the grid. Then add a 2x2 consumer and place it so they overlap. That'll start getting you dots to progress through the game.
           </p>
-          <h2>Shop</h2>
+          <h2>Progression</h2>
           <div id="shop"></div>
         </aside>
       </div>
@@ -77,7 +77,7 @@ if (!ctx) {
 
 const shopEl = document.querySelector<HTMLDivElement>("#shop")!;
 if(!shopEl) {
-  throw new Error("Could not get Shop");
+  throw new Error("Could not get shop element");
 }
 
 const pauseBtn = document.querySelector<HTMLButtonElement>("#pause-btn")!;

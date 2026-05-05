@@ -23,11 +23,14 @@ type ShopEntry = {
   plusButton: HTMLButtonElement;
 };
 
+type ShopTab = "shop" | "research";
+
 export class ShopUI {
   selectedItem: SelectedShopItem | null = null;
   shopEntries: ShopEntry[] = [];
 
   private shopEl: HTMLDivElement;
+  private activeTab: ShopTab = "shop";
   private selectedLevels = new Map<string, number>();
 
   constructor(shopEl: HTMLDivElement) {
@@ -37,6 +40,27 @@ export class ShopUI {
   render(): void {
     this.shopEl.innerHTML = "";
     this.shopEntries = [];
+
+    const tabs = document.createElement("div");
+    tabs.className = "shop-tabs";
+
+    const shopTabButton = this.createTabButton("Shop", "shop");
+    const researchTabButton = this.createTabButton("Research", "research");
+    tabs.append(shopTabButton, researchTabButton);
+
+    const panels = document.createElement("div");
+    panels.className = "shop-tab-panels";
+
+    const shopPanel = document.createElement("div");
+    shopPanel.className = "shop-tab-panel";
+    shopPanel.dataset.tabPanel = "shop";
+
+    const researchPanel = document.createElement("div");
+    researchPanel.className = "shop-tab-panel research-panel";
+    researchPanel.dataset.tabPanel = "research";
+
+    this.shopEl.append(tabs, panels);
+    panels.append(shopPanel, researchPanel);
 
     for (const item of SHOP_ITEMS) {
       const row = document.createElement("div");
@@ -112,7 +136,7 @@ export class ShopUI {
       levelReadout.append(levelText, speedText);
       levelControls.append(minusButton, levelReadout, plusButton);
       row.append(placeButton, levelControls);
-      this.shopEl.appendChild(row);
+      shopPanel.appendChild(row);
 
       this.shopEntries.push({
         item,
@@ -127,6 +151,8 @@ export class ShopUI {
       placeButton.append(itemName, preview, itemCost);
     }
 
+    this.renderResearchPanel(researchPanel);
+    this.updateActiveTab();
     this.updateButtonStates();
   }
 
@@ -225,6 +251,71 @@ export class ShopUI {
     }
 
     return cost;
+  }
+
+  private createTabButton(label: string, tab: ShopTab): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.className = "shop-tab-btn";
+    button.type = "button";
+    button.textContent = label;
+    button.dataset.tab = tab;
+
+    button.addEventListener("click", () => {
+      this.activeTab = tab;
+      this.cancelSelection();
+      this.updateActiveTab();
+    });
+
+    return button;
+  }
+
+  private updateActiveTab(): void {
+    const tabButtons = this.shopEl.querySelectorAll<HTMLButtonElement>(".shop-tab-btn");
+    const panels = this.shopEl.querySelectorAll<HTMLDivElement>(".shop-tab-panel");
+
+    for (const button of tabButtons) {
+      button.classList.toggle("active", button.dataset.tab === this.activeTab);
+    }
+
+    for (const panel of panels) {
+      panel.hidden = panel.dataset.tabPanel !== this.activeTab;
+    }
+  }
+
+  private renderResearchPanel(panel: HTMLDivElement): void {
+    const tree = document.createElement("div");
+    tree.className = "research-tree";
+
+    for (const item of SHOP_ITEMS) {
+      const node = document.createElement("div");
+      node.className = "research-node";
+
+      const title = document.createElement("div");
+      title.className = "research-node-title";
+      title.textContent = `${item.name} ${item.width}x${item.height}`;
+
+      const meta = document.createElement("div");
+      meta.className = "research-node-meta";
+
+      const unlockCost = item.unlock?.cost;
+      const requirements = item.unlock?.requires ?? [];
+      const costText = unlockCost === undefined ? "Unlocked" : `Unlock: ${unlockCost} dots`;
+      const requirementText =
+        requirements.length === 0 ? "" : `Requires: ${requirements.map((id) => this.getItemLabel(id)).join(", ")}`;
+
+      meta.textContent = requirementText ? `${costText} | ${requirementText}` : costText;
+
+      node.append(title, meta);
+      tree.appendChild(node);
+    }
+
+    panel.appendChild(tree);
+  }
+
+  private getItemLabel(itemId: string): string {
+    const item = SHOP_ITEMS.find((shopItem) => shopItem.id === itemId);
+
+    return item ? `${item.name} ${item.width}x${item.height}` : itemId;
   }
 
   private createItemPreview(item: ShopItem): HTMLSpanElement {

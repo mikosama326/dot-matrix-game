@@ -145,6 +145,49 @@ button {
   gap: 8px;
 }
 
+.shop-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #3f3f3f;
+  border-radius: 8px;
+  background: #1d1d1d;
+}
+
+#shop .shop-tab-btn {
+  min-height: 34px;
+  padding: 6px 10px;
+  border-color: transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #bdbdbd;
+  font-weight: 700;
+}
+
+#shop .shop-tab-btn:hover {
+  color: #ffffff;
+}
+
+#shop .shop-tab-btn.active {
+  background: #343434;
+  border-color: #565656;
+  color: #ffffff;
+}
+
+.shop-tab-panels {
+  min-width: 0;
+}
+
+.shop-tab-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.shop-tab-panel[hidden] {
+  display: none;
+}
+
 .shop-item {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -300,6 +343,31 @@ button {
   background: #1a1a1a;
   border: 2px solid #ffffff;
   padding: 7px 11px;
+}
+
+.research-tree {
+  display: grid;
+  gap: 8px;
+}
+
+.research-node {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid #464646;
+  border-radius: 6px;
+  background: #292929;
+}
+
+.research-node-title {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.research-node-meta {
+  color: #b7b7b7;
+  font-size: 0.84em;
+  line-height: 1.25;
 }
 
 .context-panel {
