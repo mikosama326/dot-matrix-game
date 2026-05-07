@@ -75,6 +75,12 @@ if (!ctx) {
   throw new Error("Could not get 2D context");
 }
 
+const gridBackgroundCanvas = document.createElement("canvas");
+const gridBackgroundCtx = gridBackgroundCanvas.getContext("2d")!;
+if (!gridBackgroundCtx) {
+  throw new Error("Could not get grid background context");
+}
+
 const shopEl = document.querySelector<HTMLDivElement>("#shop")!;
 if(!shopEl) {
   throw new Error("Could not get shop element");
@@ -100,6 +106,9 @@ if(!contextPanelEl) {
 ========================= */
 
 let hoveredGridCell: { x: number; y: number } | null = null;
+let pendingContextMenuHover:
+  | { gridX: number; gridY: number; screenX: number; screenY: number }
+  | null = null;
 let touchPlacementPointerId: number | null = null;
 let suppressNextCanvasClick = false;
 
@@ -218,14 +227,19 @@ document.addEventListener("pointercancel", (event) => {
 canvas.addEventListener("mousemove", (event) => {
   hoveredGridCell = screenToGrid(event.clientX, event.clientY);
   
-  // Show context panel if hovering over entities (and not dragging a new item)
   if (!shop.selectedItem && hoveredGridCell) {
-    contextMenu.showForCell(hoveredGridCell.x, hoveredGridCell.y, event.clientX, event.clientY);
+    pendingContextMenuHover = {
+      gridX: hoveredGridCell.x,
+      gridY: hoveredGridCell.y,
+      screenX: event.clientX,
+      screenY: event.clientY,
+    };
   }
 });
 
 canvas.addEventListener("mouseleave", () => {
   hoveredGridCell = null;
+  pendingContextMenuHover = null;
   if (!shop.selectedItem) {
     contextMenu.hideIfUnpinned();
   }
@@ -252,6 +266,9 @@ document.addEventListener("contextmenu", () => {
    CANVAS / RENDERING
 ========================= */
 
+const UI_REFRESH_INTERVAL = 0.1;
+const RENDER_INTERVAL = 1 / 20; // 20fps
+
 function resizeCanvas(): void {
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
@@ -260,21 +277,31 @@ function resizeCanvas(): void {
   canvas.height = Math.floor(rect.height * dpr);
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  renderGridBackground();
 }
 
-function drawGrid(): void {
+function renderGridBackground(): void {
   const cellWidth = canvas.clientWidth / grid.width;
   const cellHeight = canvas.clientHeight / grid.height;
 
-  // Optional subtle grid background:
-  ctx.fillStyle = "#1b1b1b";
+  gridBackgroundCanvas.width = canvas.clientWidth;
+  gridBackgroundCanvas.height = canvas.clientHeight;
+
+  gridBackgroundCtx.fillStyle = "#111";
+  gridBackgroundCtx.fillRect(0, 0, gridBackgroundCanvas.width, gridBackgroundCanvas.height);
+
+  gridBackgroundCtx.fillStyle = "#1b1b1b";
   for (let y = 0; y < grid.height; y++) {
     for (let x = 0; x < grid.width; x++) {
       const screenX = x * cellWidth;
       const screenY = y * cellHeight;
-      ctx.fillRect(screenX, screenY, cellWidth - 1, cellHeight - 1);
+      gridBackgroundCtx.fillRect(screenX, screenY, cellWidth - 1, cellHeight - 1);
     }
   }
+}
+
+function drawGrid(): void {
+  ctx.drawImage(gridBackgroundCanvas, 0, 0, canvas.clientWidth, canvas.clientHeight);
 }
 
 function drawDots(): void {
@@ -378,18 +405,27 @@ function render(): void {
 
   ctx.clearRect(0, 0, width, height);
 
-  // Background
-  ctx.fillStyle = "#111";
-  ctx.fillRect(0, 0, width, height);
-
   drawGrid();
   drawDots();
 
   drawEntityBounds();
 
-  drawStats();
-
   drawHoveredShopItem();
+}
+
+function updateUi(): void {
+  updateContextMenuHover();
+  drawStats();
+  shop.updateButtonStates();
+  contextMenu.refresh();
+}
+
+function updateContextMenuHover(): void {
+  if (shop.selectedItem || pendingContextMenuHover === null) return;
+
+  const hover = pendingContextMenuHover;
+  pendingContextMenuHover = null;
+  contextMenu.showForCell(hover.gridX, hover.gridY, hover.screenX, hover.screenY);
 }
 
 
@@ -399,6 +435,8 @@ function render(): void {
 
 let lastTime = 0;
 let accumulator = 0;
+let renderAccumulator = 0;
+let uiAccumulator = 0;
 const TICK_INTERVAL = secondsPerTick(gameState.TICK_RATE);
 
 function frame(time: number): void {
@@ -406,10 +444,12 @@ function frame(time: number): void {
     lastTime = time;
   }
 
-  const deltaSeconds = (time - lastTime) / 1000;
+  const deltaSeconds = Math.min((time - lastTime) / 1000, 0.25);
   lastTime = time;
 
   accumulator += deltaSeconds;
+  renderAccumulator += deltaSeconds;
+  uiAccumulator += deltaSeconds;
 
   while (accumulator >= TICK_INTERVAL) {
     if (!gameState.isPaused) {
@@ -418,9 +458,16 @@ function frame(time: number): void {
     accumulator -= TICK_INTERVAL;
   }
 
-  render();
-  shop.updateButtonStates();
-  contextMenu.refresh();
+  if (renderAccumulator >= RENDER_INTERVAL) {
+    render();
+    renderAccumulator %= RENDER_INTERVAL;
+  }
+
+  if (uiAccumulator >= UI_REFRESH_INTERVAL) {
+    updateUi();
+    uiAccumulator %= UI_REFRESH_INTERVAL;
+  }
+
   requestAnimationFrame(frame);
 }
 
@@ -441,4 +488,5 @@ boundsBtn.addEventListener("click", () => {
 
 resizeCanvas();
 shop.render();
+updateUi();
 requestAnimationFrame(frame);

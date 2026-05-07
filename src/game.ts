@@ -1,5 +1,6 @@
 import { secondsPerTick, TICK_RATE_PROGRESSION } from "./constants.ts";
 import { type Producer, type Consumer } from "./entities/actor.ts";
+import { ResearchSystem } from "./research/researchState.ts";
 
 export class GameState {
   dotCount = 20;
@@ -7,6 +8,7 @@ export class GameState {
   showBounds = false;
   producers: Producer[] = [];
   consumers: Consumer[] = [];
+  researchSystem = new ResearchSystem();
   GLOBAL_PHASE = 0;
 
   dotsProducedCurrentSecond = 0;
@@ -41,7 +43,12 @@ export class GameState {
 
       this.dotTick += secondsPerTick(1);
     }
-
+    
+    // if we need to update the research system, update it
+    if(this.GLOBAL_PHASE === 0) {
+      this.researchSystem.update(this);
+    }
+    
     this.GLOBAL_PHASE++;
     this.GLOBAL_PHASE %= this.TICK_RATE;
   }

@@ -3,6 +3,8 @@ import { type ShopItem } from "./shopItems.ts";
 import { TICK_RATE_PROGRESSION, UPGRADE_TICK_RATE_COST } from "../constants.ts";
 import { gameState } from "../game.ts";
 import { grid } from "../grid.ts";
+import { RESEARCH_NODES } from "../research/researchItems.ts";
+import { type ResearchNode } from "../research/researchState.ts";
 
 type SelectedShopItem = {
   item: ShopItem;
@@ -23,11 +25,21 @@ type ShopEntry = {
   plusButton: HTMLButtonElement;
 };
 
+type ResearchEntry = {
+  node: ResearchNode;
+  card: HTMLDivElement;
+  status: HTMLSpanElement;
+  progressFill: HTMLDivElement;
+  progressText: HTMLSpanElement;
+  actionButton: HTMLButtonElement;
+};
+
 type ShopTab = "shop" | "research";
 
 export class ShopUI {
   selectedItem: SelectedShopItem | null = null;
   shopEntries: ShopEntry[] = [];
+  researchEntries: ResearchEntry[] = [];
 
   private shopEl: HTMLDivElement;
   private activeTab: ShopTab = "shop";
@@ -40,6 +52,7 @@ export class ShopUI {
   render(): void {
     this.shopEl.innerHTML = "";
     this.shopEntries = [];
+    this.researchEntries = [];
 
     const tabs = document.createElement("div");
     tabs.className = "shop-tabs";
@@ -161,16 +174,20 @@ export class ShopUI {
       const level = this.getSelectedLevel(entry.item.id);
       const cost = this.getPlacementCost(entry.item, level);
       const tickRate = TICK_RATE_PROGRESSION[level];
+      const isUnlocked = gameState.researchSystem.isItemUnlocked(entry.item.id);
 
       entry.itemName.textContent = `${entry.item.name} ${entry.item.width}x${entry.item.height}`;
-      entry.itemCost.textContent = `${cost} dots`;
-      entry.placeButton.disabled = gameState.dotCount < cost;
+      entry.itemCost.textContent = isUnlocked ? `${cost} dots` : "Locked";
+      entry.placeButton.disabled = !isUnlocked || gameState.dotCount < cost;
       entry.levelText.textContent = `Lv ${level + 1}`;
       entry.speedText.textContent = `${tickRate}/s`;
-      entry.minusButton.disabled = level <= 0;
-      entry.plusButton.disabled = level >= TICK_RATE_PROGRESSION.length - 1;
+      entry.minusButton.disabled = !isUnlocked || level <= 0;
+      entry.plusButton.disabled = !isUnlocked || level >= TICK_RATE_PROGRESSION.length - 1;
       entry.placeButton.classList.toggle("selected", this.selectedItem?.item.id === entry.item.id);
+      entry.placeButton.classList.toggle("locked", !isUnlocked);
     }
+
+    this.updateResearchStates();
   }
 
   cancelSelection(): void {
@@ -215,7 +232,7 @@ export class ShopUI {
     const level = this.getSelectedLevel(item.id);
     const cost = this.getPlacementCost(item, level);
 
-    if (gameState.dotCount < cost) {
+    if (!gameState.researchSystem.isItemUnlocked(item.id) || gameState.dotCount < cost) {
       this.cancelSelection();
       return false;
     }
@@ -286,30 +303,132 @@ export class ShopUI {
     const tree = document.createElement("div");
     tree.className = "research-tree";
 
-    for (const item of SHOP_ITEMS) {
-      const node = document.createElement("div");
-      node.className = "research-node";
+    for (const researchNode of RESEARCH_NODES) {
+      const card = document.createElement("div");
+      card.className = "research-node";
 
       const title = document.createElement("div");
       title.className = "research-node-title";
-      title.textContent = `${item.name} ${item.width}x${item.height}`;
+
+      const name = document.createElement("span");
+      name.textContent = researchNode.name;
+
+      const status = document.createElement("span");
+      status.className = "research-node-status";
+
+      title.append(name, status);
+
+      const description = document.createElement("div");
+      description.className = "research-node-description";
+      description.textContent = researchNode.description ?? "";
 
       const meta = document.createElement("div");
       meta.className = "research-node-meta";
+      meta.textContent = this.getResearchMetaText(researchNode);
 
-      const unlockCost = item.unlock?.cost;
-      const requirements = item.unlock?.requires ?? [];
-      const costText = unlockCost === undefined ? "Unlocked" : `Unlock: ${unlockCost} dots`;
-      const requirementText =
-        requirements.length === 0 ? "" : `Requires: ${requirements.map((id) => this.getItemLabel(id)).join(", ")}`;
+      const progress = document.createElement("div");
+      progress.className = "research-progress";
 
-      meta.textContent = requirementText ? `${costText} | ${requirementText}` : costText;
+      const progressFill = document.createElement("div");
+      progressFill.className = "research-progress-fill";
+      progress.appendChild(progressFill);
 
-      node.append(title, meta);
-      tree.appendChild(node);
+      const footer = document.createElement("div");
+      footer.className = "research-node-footer";
+
+      const progressText = document.createElement("span");
+      progressText.className = "research-progress-text";
+
+      const actionButton = document.createElement("button");
+      actionButton.className = "research-start-btn";
+      actionButton.type = "button";
+      actionButton.addEventListener("click", () => {
+        if (gameState.researchSystem.start(researchNode.id)) {
+          this.updateButtonStates();
+        }
+      });
+
+      footer.append(progressText, actionButton);
+      card.append(title, description, meta, progress, footer);
+      tree.appendChild(card);
+
+      this.researchEntries.push({
+        node: researchNode,
+        card,
+        status,
+        progressFill,
+        progressText,
+        actionButton,
+      });
     }
 
     panel.appendChild(tree);
+  }
+
+  private updateResearchStates(): void {
+    const activeNode = gameState.researchSystem.getActiveNode();
+
+    for (const entry of this.researchEntries) {
+      const isCompleted = gameState.researchSystem.isCompleted(entry.node.id);
+      const isActive = activeNode?.id === entry.node.id;
+      const isAvailable = gameState.researchSystem.isAvailable(entry.node.id);
+      const isBlocked = !isCompleted && !isActive && !isAvailable;
+      const progress = gameState.researchSystem.getProgress(entry.node.id);
+      const progressRatio = gameState.researchSystem.getProgressRatio(entry.node.id);
+      const total = entry.node.cost.totalDots;
+
+      entry.card.classList.toggle("completed", isCompleted);
+      entry.card.classList.toggle("active", isActive);
+      entry.card.classList.toggle("available", isAvailable);
+      entry.card.classList.toggle("blocked", isBlocked);
+
+      entry.status.textContent = this.getResearchStatusText(entry.node);
+      entry.progressFill.style.width = `${Math.round(progressRatio * 100)}%`;
+      entry.progressText.textContent = total <= 0 ? "Complete" : `${progress} / ${total} dots`;
+
+      if (isCompleted) {
+        entry.actionButton.textContent = "Complete";
+        entry.actionButton.disabled = true;
+      } else if (isActive) {
+        entry.actionButton.textContent = "Researching";
+        entry.actionButton.disabled = true;
+      } else if (isAvailable) {
+        entry.actionButton.textContent = activeNode ? "Busy" : "Start";
+        entry.actionButton.disabled = activeNode !== undefined;
+      } else {
+        entry.actionButton.textContent = "Locked";
+        entry.actionButton.disabled = true;
+      }
+    }
+  }
+
+  private getResearchStatusText(node: ResearchNode): string {
+    if (gameState.researchSystem.isCompleted(node.id)) return "Complete";
+    if (gameState.researchSystem.activeNodeID === node.id) return "Active";
+    if (gameState.researchSystem.isAvailable(node.id)) return "Available";
+    return "Locked";
+  }
+
+  private getResearchMetaText(node: ResearchNode): string {
+    const parts = [`Cost: ${node.cost.totalDots} dots`, `Rate: ${node.cost.dotsPerSecond}/tick`];
+    const prerequisites = node.prerequisites ?? [];
+    const unlockedItems = node.unlocks?.shopItemIds ?? [];
+
+    if (prerequisites.length > 0) {
+      parts.push(`Requires: ${prerequisites.map((id) => this.getResearchLabel(id)).join(", ")}`);
+    }
+
+    if (unlockedItems.length > 0) {
+      parts.push(`Unlocks: ${unlockedItems.map((id) => this.getItemLabel(id)).join(", ")}`);
+    }
+
+    return parts.join(" | ");
+  }
+
+  private getResearchLabel(nodeId: string): string {
+    const node = RESEARCH_NODES.find((researchNode) => researchNode.id === nodeId);
+
+    return node?.name ?? nodeId;
   }
 
   private getItemLabel(itemId: string): string {

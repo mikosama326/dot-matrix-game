@@ -37,6 +37,11 @@ export class ContextMenu {
       return false;
     }
 
+    if (this.sameEntities(entities, this.currentEntities)) {
+      this.positionAt(screenX, screenY);
+      return true;
+    }
+
     this.show(entities, screenX, screenY);
     return true;
   }
@@ -121,6 +126,18 @@ export class ContextMenu {
       gridY >= entity.beginY &&
       gridY < entity.beginY + entity.height
     );
+  }
+
+  private sameEntities(first: Entity[], second: Entity[]): boolean {
+    if (first.length !== second.length) return false;
+
+    for (let i = 0; i < first.length; i++) {
+      if (first[i].type !== second[i].type || first[i].index !== second[i].index) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private renderEntities(entities: Entity[]): string {

@@ -345,6 +345,10 @@ button {
   padding: 7px 11px;
 }
 
+#shop .shop-place-btn.locked {
+  border-style: dashed;
+}
+
 .research-tree {
   display: grid;
   gap: 8px;
@@ -359,15 +363,106 @@ button {
   background: #292929;
 }
 
+.research-node.completed {
+  border-color: #4d8f65;
+  background: #243127;
+}
+
+.research-node.active {
+  border-color: #d5b35b;
+  background: #332f22;
+}
+
+.research-node.available {
+  border-color: #5f83ad;
+}
+
+.research-node.blocked {
+  opacity: 0.62;
+}
+
 .research-node-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-weight: 700;
   color: #ffffff;
+}
+
+.research-node-status {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid #555555;
+  border-radius: 999px;
+  color: #cfcfcf;
+  font-size: 0.68em;
+  text-transform: uppercase;
+}
+
+.research-node-description {
+  color: #d4d4d4;
+  font-size: 0.84em;
+  line-height: 1.25;
 }
 
 .research-node-meta {
   color: #b7b7b7;
   font-size: 0.84em;
   line-height: 1.25;
+}
+
+.research-progress {
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid #414141;
+  border-radius: 999px;
+  background: #1b1b1b;
+}
+
+.research-progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #d5b35b;
+  transition: width 0.15s ease;
+}
+
+.research-node.completed .research-progress-fill {
+  background: #55b96f;
+}
+
+.research-node-footer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.research-progress-text {
+  color: #cfcfcf;
+  font-size: 0.78em;
+}
+
+#shop .research-start-btn {
+  min-width: 92px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border-color: #606060;
+  border-radius: 5px;
+  background: #333333;
+  font-size: 0.84em;
+  font-weight: 700;
+}
+
+#shop .research-node.available .research-start-btn:not(:disabled) {
+  border-color: #6f9ccf;
+  background: #263b53;
+}
+
+#shop .research-node.available .research-start-btn:hover:not(:disabled) {
+  border-color: #86b8ef;
+  background: #2f4a68;
 }
 
 .context-panel {
