@@ -410,7 +410,7 @@ export class ShopUI {
   }
 
   private getResearchMetaText(node: ResearchNode): string {
-    const parts = [`Cost: ${node.cost.totalDots} dots`, `Rate: ${node.cost.dotsPerSecond}/tick`];
+    const parts = [`Cost: ${node.cost.totalDots} dots`, `Rate: ${node.cost.dotsPerSecond}/sec`];
     const prerequisites = node.prerequisites ?? [];
     const unlockedItems = node.unlocks?.shopItemIds ?? [];
 

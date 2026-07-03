@@ -267,7 +267,7 @@ document.addEventListener("contextmenu", () => {
 ========================= */
 
 const UI_REFRESH_INTERVAL = 0.1;
-const RENDER_INTERVAL = 1 / 20; // 20fps
+const RENDER_INTERVAL = 1 / 60; //60fps
 
 function resizeCanvas(): void {
   const rect = canvas.getBoundingClientRect();

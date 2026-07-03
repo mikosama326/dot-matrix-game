@@ -4,7 +4,7 @@ export const RESEARCH_NODES: ResearchNode[] = [
   {
     id: "4x4",
     name: "Bigger (4x4)",
-    description: "Broadens the basic frame into larger square producer and consumer cells.",
+    description: "Bigger producers and consumers.",
     cost: {
       totalDots: 120,
       dotsPerSecond: 2,
@@ -14,66 +14,66 @@ export const RESEARCH_NODES: ResearchNode[] = [
     },
   },
   {
-    id: "wide-frames",
-    name: "Wide Frames",
-    description: "Unlocks rectangular frames for denser horizontal layouts.",
+    id: "8x4",
+    name: "Rectangle (8x4)",
+    description: "Whoa. A rectangle. Crazy.",
     cost: {
       totalDots: 450,
       dotsPerSecond: 4,
     },
-    prerequisites: ["expanded-frames"],
+    prerequisites: ["4x4"],
     unlocks: {
       shopItemIds: ["producer-8x4", "consumer-8x4"],
     },
   },
   {
-    id: "circular-flow",
-    name: "Circles",
-    description: "Turns square frames into looping patterns that cycle through their area.",
+    id: "circle-4x4",
+    name: "Circle (4x4)",
+    description: "Draw a circle of dots.",
     cost: {
       totalDots: 650,
       dotsPerSecond: 5,
     },
-    prerequisites: ["expanded-frames"],
+    prerequisites: ["4x4"],
     unlocks: {
       shopItemIds: ["circle-producer-4x4", "circle-consumer-4x4"],
     },
   },
   {
-    id: "phase-inversion",
-    name: "Phase Inversion",
-    description: "Reverses the timing path through a frame for new overlap behavior.",
+    id: "reverse",
+    name: "Reverse",
+    description: "Take it back now ya'll",
     cost: {
       totalDots: 900,
       dotsPerSecond: 6,
     },
-    prerequisites: ["expanded-frames"],
+    prerequisites: ["4x4"],
     unlocks: {
       shopItemIds: ["reverse-producer-4x4", "reverse-consumer-4x4"],
     },
   },
   {
-    id: "large-matrices",
-    name: "Large Matrices",
-    description: "Stabilizes full 8x8 fields for high-capacity production and consumption.",
+    id: "8x8",
+    name: "Even Bigger (8x8)",
+    description: "Yeah. They're even bigger!",
     cost: {
       totalDots: 6000,
       dotsPerSecond: 20,
     },
-    prerequisites: ["wide-frames"],
+    prerequisites: ["8x4"],
     unlocks: {
       shopItemIds: ["producer-8x8", "consumer-8x8"],
     },
   },
   {
-    id: "large-circular-flow",
-    name: "Large Circular Flow",
-    description: "Scales circular paths into full 8x8 fields.",
+    id: "circle-8x8",
+    name: "Bigger Circle (8x8)",
+    description: "A bigger circle.",
     cost: {
       totalDots: 9000,
       dotsPerSecond: 25,
     },
-    prerequisites: ["large-matrices", "circular-flow"],
+    prerequisites: ["8x8", "circle-4x4"],
     unlocks: {
       shopItemIds: ["circle-producer-8x8", "circle-consumer-8x8"],
     },
