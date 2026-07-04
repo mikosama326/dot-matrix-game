@@ -3,6 +3,7 @@ import { type ShopItem } from "./shopItems.ts";
 import { TICK_RATE_PROGRESSION, UPGRADE_TICK_RATE_COST } from "../constants.ts";
 import { gameState } from "../game.ts";
 import { grid } from "../grid.ts";
+import { telemetry } from "../telemetry.ts";
 
 type SelectedShopItem = {
   item: ShopItem;
@@ -168,17 +169,35 @@ export class ShopUI {
 
     const selectedItem = this.selectedItem;
     const item = selectedItem.item;
+    const dotsAvailable = gameState.dotCount;
     gameState.dotCount -= selectedItem.cost;
 
     if (item.kind === "producer") {
       const producer = item.createActor(gridX, gridY, item.width, item.height, gameState.GLOBAL_PHASE);
+      producer.shopItemId = item.id;
+      producer.shopItemName = item.name;
       producer.setTickRateIndex(selectedItem.level);
       gameState.producers.push(producer);
     } else {
       const consumer = item.createActor(gridX, gridY, item.width, item.height, gameState.GLOBAL_PHASE);
+      consumer.shopItemId = item.id;
+      consumer.shopItemName = item.name;
       consumer.setTickRateIndex(selectedItem.level);
       gameState.consumers.push(consumer);
     }
+
+    telemetry.itemPlaced({
+      item_id: item.id,
+      item_name: item.name,
+      item_kind: item.kind,
+      item_width: item.width,
+      item_height: item.height,
+      item_level: selectedItem.level + 1,
+      item_cost: selectedItem.cost,
+      dots_available: dotsAvailable,
+      grid_x: gridX,
+      grid_y: gridY,
+    });
 
     this.selectedItem = null;
     this.render();

@@ -17,6 +17,20 @@ export class GameState {
 
   readonly TICK_RATE = TICK_RATE_PROGRESSION[TICK_RATE_PROGRESSION.length - 1];
 
+  init(): void {
+    this.dotCount = 20;
+    this.isPaused = false;
+    this.showBounds = false;
+    this.producers = [];
+    this.consumers = [];
+    this.GLOBAL_PHASE = 0;
+    this.dotsProducedCurrentSecond = 0;
+    this.dotsConsumedCurrentSecond = 0;
+    this.dotTick = 1;
+    this.dotProductionRate = 0;
+    this.dotConsumptionRate = 0;
+  }
+
   update(deltaTime: number): void {
     // Update all producers
     for (let i = 0; i < this.producers.length; i++) {

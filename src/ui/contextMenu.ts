@@ -2,6 +2,7 @@ import { TICK_RATE_PROGRESSION, UPGRADE_TICK_RATE_COST } from "../constants.ts";
 import { type Consumer, type Producer } from "../entities/actor.ts";
 import { gameState } from "../game.ts";
 import { SHOP_ITEMS } from "../shop/shopItems.ts";
+import { telemetry } from "../telemetry.ts";
 
 type Entity =
   | { type: "producer"; entity: Producer; index: number }
@@ -206,15 +207,38 @@ export class ContextMenu {
       const entity = gameState.producers[entityIndex];
       if (!entity) return;
 
-      gameState.dotCount += this.getRefundValue({ type: entityType, entity, index: entityIndex });
+      const deletedEntity = { type: entityType, entity, index: entityIndex } as Entity;
+      const itemCost = this.getRefundValue(deletedEntity);
+      const dotsAvailable = gameState.dotCount;
+      gameState.dotCount += itemCost;
       gameState.producers.splice(entityIndex, 1);
+      this.logItemDeleted(deletedEntity, itemCost, dotsAvailable);
     } else {
       const entity = gameState.consumers[entityIndex];
       if (!entity) return;
 
-      gameState.dotCount += this.getRefundValue({ type: entityType, entity, index: entityIndex });
+      const deletedEntity = { type: entityType, entity, index: entityIndex } as Entity;
+      const itemCost = this.getRefundValue(deletedEntity);
+      const dotsAvailable = gameState.dotCount;
+      gameState.dotCount += itemCost;
       gameState.consumers.splice(entityIndex, 1);
+      this.logItemDeleted(deletedEntity, itemCost, dotsAvailable);
     }
+  }
+
+  private logItemDeleted(entity: Entity, itemCost: number, dotsAvailable: number): void {
+    telemetry.itemDeleted({
+      item_id: entity.entity.shopItemId,
+      item_name: this.getEntityName(entity),
+      item_kind: entity.type,
+      item_width: entity.entity.width,
+      item_height: entity.entity.height,
+      item_level: entity.entity.currentTickRateIndex + 1,
+      item_cost: itemCost,
+      dots_available: dotsAvailable,
+      grid_x: entity.entity.beginX,
+      grid_y: entity.entity.beginY,
+    });
   }
 
   private updateUpgradeButtons(): void {
@@ -267,6 +291,11 @@ export class ContextMenu {
   }
 
   private getBaseCost(entity: Entity): number {
+    if (entity.entity.shopItemId) {
+      const matchingShopItem = SHOP_ITEMS.find((item) => item.id === entity.entity.shopItemId);
+      return matchingShopItem?.cost ?? 0;
+    }
+
     const matchingShopItem = SHOP_ITEMS.find(
       (item) =>
         item.kind === entity.type &&
@@ -275,5 +304,9 @@ export class ContextMenu {
     );
 
     return matchingShopItem?.cost ?? 0;
+  }
+
+  private getEntityName(entity: Entity): string {
+    return entity.entity.shopItemName || entity.entity.constructor.name || (entity.type === "producer" ? "Producer" : "Consumer");
   }
 }

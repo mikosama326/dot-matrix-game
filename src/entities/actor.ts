@@ -6,6 +6,8 @@ export class Actor {
   beginY : number;
   width : number;
   height : number;
+  shopItemId?: string;
+  shopItemName?: string;
   currentTickRateIndex : number;
   protected currentX: number;
   protected currentY: number;

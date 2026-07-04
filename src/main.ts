@@ -3,6 +3,7 @@ import { secondsPerTick } from "./constants.ts";
 import { gameState } from "./game.ts";
 import { grid } from "./grid.ts";
 import { ShopUI } from "./shop/shopUI.ts";
+import { telemetry } from "./telemetry.ts";
 import { ContextMenu } from "./ui/contextMenu.ts";
 
 /* =========================
@@ -399,7 +400,17 @@ function render(): void {
 
 let lastTime = 0;
 let accumulator = 0;
+const sessionStartedAt = performance.now();
+const HEARTBEAT_INTERVAL_MS = 15000;
 const TICK_INTERVAL = secondsPerTick(gameState.TICK_RATE);
+
+function getOpenSeconds(): number {
+  return Math.floor((performance.now() - sessionStartedAt) / 1000);
+}
+
+function isGameActivelyTickingItems(): boolean {
+  return !gameState.isPaused && (gameState.producers.length > 0 || gameState.consumers.length > 0);
+}
 
 function frame(time: number): void {
   if (lastTime === 0) {
@@ -438,6 +449,19 @@ boundsBtn.addEventListener("click", () => {
   gameState.showBounds = !gameState.showBounds;
   boundsBtn.textContent = gameState.showBounds ? "Hide Bounds" : "Show Bounds";
 });
+
+gameState.init();
+telemetry.gameStarted();
+
+setInterval(() => {
+  if (!isGameActivelyTickingItems()) return;
+
+  telemetry.heartbeat(getOpenSeconds(), {
+    dot_count: gameState.dotCount,
+    dot_production_rate: gameState.dotProductionRate,
+    dot_consumption_rate: gameState.dotConsumptionRate,
+  });
+}, HEARTBEAT_INTERVAL_MS);
 
 resizeCanvas();
 shop.render();
