@@ -400,6 +400,7 @@ function render(): void {
 
 let lastTime = 0;
 let accumulator = 0;
+let hasLoggedGameEnded = false;
 const sessionStartedAt = performance.now();
 const HEARTBEAT_INTERVAL_MS = 15000;
 const TICK_INTERVAL = secondsPerTick(gameState.TICK_RATE);
@@ -410,6 +411,21 @@ function getOpenSeconds(): number {
 
 function isGameActivelyTickingItems(): boolean {
   return !gameState.isPaused && (gameState.producers.length > 0 || gameState.consumers.length > 0);
+}
+
+function logGameEnded(): void {
+  if (hasLoggedGameEnded) return;
+
+  hasLoggedGameEnded = true;
+  telemetry.gameEnded(getOpenSeconds(), {
+    dot_count: gameState.dotCount,
+    dot_production_rate: gameState.dotProductionRate,
+    dot_consumption_rate: gameState.dotConsumptionRate,
+    total_dots_produced: gameState.totalDotsProduced,
+    total_dots_consumed: gameState.totalDotsConsumed,
+    producer_count: gameState.producers.length,
+    consumer_count: gameState.consumers.length,
+  });
 }
 
 function frame(time: number): void {
@@ -438,6 +454,10 @@ function frame(time: number): void {
 window.addEventListener("resize", () => {
   resizeCanvas();
   render();
+});
+
+window.addEventListener("pagehide", () => {
+  logGameEnded();
 });
 
 pauseBtn.addEventListener("click", () => {

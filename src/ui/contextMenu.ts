@@ -236,6 +236,7 @@ export class ContextMenu {
       item_level: entity.entity.currentTickRateIndex + 1,
       item_cost: itemCost,
       dots_available: dotsAvailable,
+      dots_after: gameState.dotCount,
       grid_x: entity.entity.beginX,
       grid_y: entity.entity.beginY,
     });

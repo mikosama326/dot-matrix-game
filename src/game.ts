@@ -11,6 +11,8 @@ export class GameState {
 
   dotsProducedCurrentSecond = 0;
   dotsConsumedCurrentSecond = 0;
+  totalDotsProduced = 0;
+  totalDotsConsumed = 0;
   dotTick = 1;
   dotProductionRate = 0;
   dotConsumptionRate = 0;
@@ -26,6 +28,8 @@ export class GameState {
     this.GLOBAL_PHASE = 0;
     this.dotsProducedCurrentSecond = 0;
     this.dotsConsumedCurrentSecond = 0;
+    this.totalDotsProduced = 0;
+    this.totalDotsConsumed = 0;
     this.dotTick = 1;
     this.dotProductionRate = 0;
     this.dotConsumptionRate = 0;
@@ -34,7 +38,9 @@ export class GameState {
   update(deltaTime: number): void {
     // Update all producers
     for (let i = 0; i < this.producers.length; i++) {
-      this.dotsProducedCurrentSecond += this.producers[i].update(deltaTime);
+      const dotsProduced = this.producers[i].update(deltaTime);
+      this.dotsProducedCurrentSecond += dotsProduced;
+      this.totalDotsProduced += dotsProduced;
     }
 
     // Update all consumers
@@ -42,6 +48,7 @@ export class GameState {
       const dotsConsumed = this.consumers[i].update(deltaTime);
       this.dotCount += dotsConsumed;
       this.dotsConsumedCurrentSecond += dotsConsumed;
+      this.totalDotsConsumed += dotsConsumed;
     }
 
     this.dotTick -= deltaTime;

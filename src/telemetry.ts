@@ -2,6 +2,13 @@ const API_BASE_URL = import.meta.env.VITE_ANALYTICS_API_BASE_URL ?? "http://loca
 const API_KEY = import.meta.env.VITE_ANALYTICS_API_KEY;
 const sessionId = crypto.randomUUID();
 
+if (import.meta.env.DEV) {
+  console.log("Dot Matrix telemetry config", {
+    apiBaseUrl: API_BASE_URL,
+    apiKey: API_KEY ?? "(not set)",
+  });
+}
+
 type ItemTelemetryProperties = {
   item_id: string | undefined;
   item_name: string;
@@ -11,6 +18,7 @@ type ItemTelemetryProperties = {
   item_level: number;
   item_cost: number;
   dots_available: number;
+  dots_after: number;
   grid_x: number;
   grid_y: number;
 };
@@ -19,6 +27,13 @@ type HeartbeatTelemetryProperties = {
   dot_count: number;
   dot_production_rate: number;
   dot_consumption_rate: number;
+};
+
+type GameEndedTelemetryProperties = HeartbeatTelemetryProperties & {
+  total_dots_produced: number;
+  total_dots_consumed: number;
+  producer_count: number;
+  consumer_count: number;
 };
 
 function getPlayerId(): string {
@@ -36,7 +51,11 @@ function getSessionId(): string {
   return sessionId;
 }
 
-export async function logEvent(eventName: string, properties: Record<string, unknown> = {}) {
+export async function logEvent(
+  eventName: string,
+  properties: Record<string, unknown> = {},
+  options: { keepalive?: boolean } = {}
+) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -49,6 +68,7 @@ export async function logEvent(eventName: string, properties: Record<string, unk
     await fetch(`${API_BASE_URL}/api/events`, {
       method: "POST",
       headers,
+      keepalive: options.keepalive,
       body: JSON.stringify({
         player_id: getPlayerId(),
         session_id: getSessionId(),
@@ -81,11 +101,10 @@ export const telemetry = {
     return logEvent("item_deleted", properties);
   },
 
-  gameEnded(openSeconds: number, totalDotsProduced: number, totalDotsConsumed: number) {
+  gameEnded(openSeconds: number, properties: GameEndedTelemetryProperties) {
     return logEvent("game_ended", {
       open_seconds: openSeconds,
-      total_dots_produced: totalDotsProduced,
-      total_dots_consumed: totalDotsConsumed,
-    });
+      ...properties,
+    }, { keepalive: true });
   },
 };

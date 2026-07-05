@@ -195,6 +195,7 @@ export class ShopUI {
       item_level: selectedItem.level + 1,
       item_cost: selectedItem.cost,
       dots_available: dotsAvailable,
+      dots_after: gameState.dotCount,
       grid_x: gridX,
       grid_y: gridY,
     });
